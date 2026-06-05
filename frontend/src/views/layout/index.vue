@@ -10,8 +10,6 @@ const route = useRoute()
 const userStore = useUserStore()
 const tabsStore = useTabsStore()
 
-const isCollapse = ref(false)
-
 // 菜单列表
 const menuList = computed(() => {
   const allMenus = [
@@ -115,15 +113,19 @@ onMounted(() => {
 
     <!-- 主体区域 -->
     <div class="tinper-main">
-      <!-- 左侧菜单 -->
-      <aside class="tinper-sidebar" :class="{ collapse: isCollapse }">
-        <div class="sidebar-toggle" @click="isCollapse = !isCollapse">
-          <svg viewBox="0 0 24 24" width="16" height="16">
-            <path v-if="!isCollapse" fill="currentColor" d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
-            <path v-else fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
-          </svg>
+      <!-- 左侧菜单 - YonBIP深色风格 -->
+      <aside class="yonbip-sidebar">
+        <!-- 搜索框 -->
+        <div class="search-wrapper">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+            </svg>
+            <input type="text" placeholder="搜索菜单" />
+          </div>
         </div>
 
+        <!-- 菜单容器 -->
         <nav class="sidebar-menu">
           <div
             v-for="menu in menuList"
@@ -146,9 +148,17 @@ onMounted(() => {
                 <path fill="currentColor" d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
               </svg>
             </div>
-            <span v-if="!isCollapse" class="menu-title">{{ menu.title }}</span>
+            <span class="menu-title">{{ menu.title }}</span>
           </div>
         </nav>
+
+        <!-- 底部信息 -->
+        <div class="sidebar-footer">
+          <svg viewBox="0 0 24 24" width="12" height="12">
+            <path fill="currentColor" d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+          </svg>
+          <span>MDM 平台 · v1.0</span>
+        </div>
       </aside>
 
       <!-- 内容区域 -->
@@ -335,47 +345,75 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* 左侧菜单 */
-.tinper-sidebar {
-  width: 220px;
-  background: white;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+/* 左侧菜单 - YonBIP深色风格 */
+.yonbip-sidebar {
+  width: 280px;
+  background-color: #1c2940;
+  color: #e0e6f0;
   display: flex;
   flex-direction: column;
-  transition: width 0.3s;
-  position: relative;
+  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+  transition: all 0.2s;
 }
 
-.tinper-sidebar.collapse {
-  width: 64px;
+/* 自定义滚动条 */
+.yonbip-sidebar::-webkit-scrollbar {
+  width: 5px;
 }
 
-.sidebar-toggle {
-  position: absolute;
-  top: 12px;
-  right: -12px;
-  width: 24px;
-  height: 24px;
-  background: white;
-  border-radius: 50%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+.yonbip-sidebar::-webkit-scrollbar-track {
+  background: #2a3a55;
+}
+
+.yonbip-sidebar::-webkit-scrollbar-thumb {
+  background: #4c6a8f;
+  border-radius: 6px;
+}
+
+/* 搜索框区域 */
+.search-wrapper {
+  padding: 20px 16px 16px 20px;
+  border-bottom: 1px solid #2c3a55;
+  margin-bottom: 12px;
+}
+
+.search-box {
+  background: #25334f;
+  border-radius: 28px;
+  padding: 10px 18px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 10;
-  color: #606266;
-  transition: all 0.3s;
+  gap: 12px;
+  transition: all 0.2s;
+  border: 1px solid #3a4868;
+  color: #90a0c2;
 }
 
-.sidebar-toggle:hover {
-  background: #1E88E5;
-  color: white;
+.search-box input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f0f4fa;
+  font-size: 14px;
+  width: 100%;
+  letter-spacing: 0.3px;
 }
 
+.search-box input::placeholder {
+  color: #7a89aa;
+  font-weight: 400;
+}
+
+.search-box:focus-within {
+  border-color: #5d7bb2;
+  background: #2a3857;
+}
+
+/* 菜单容器 */
 .sidebar-menu {
   flex: 1;
-  padding: 16px 0;
+  padding: 8px 12px 20px 12px;
   overflow-y: auto;
 }
 
@@ -383,41 +421,48 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 20px;
-  color: #606266;
+  padding: 12px 12px;
+  color: #e2e8f2;
   cursor: pointer;
-  transition: all 0.3s;
-  border-left: 3px solid transparent;
-  margin: 4px 0;
+  transition: all 0.2s;
+  border-radius: 12px;
+  margin: 2px 0;
+  font-weight: 500;
+  font-size: 15px;
 }
 
 .menu-item:hover {
-  background: rgba(30, 136, 229, 0.05);
-  color: #1E88E5;
+  background: #2a3a58;
 }
 
 .menu-item.active {
-  background: rgba(30, 136, 229, 0.1);
-  color: #1E88E5;
-  border-left-color: #1E88E5;
-  font-weight: 500;
+  background: #2f4170;
+  color: white;
 }
 
 .menu-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 20px;
+  min-width: 22px;
+  color: #9aaeca;
 }
 
 .menu-title {
-  font-size: 14px;
+  font-size: 15px;
   white-space: nowrap;
 }
 
-.tinper-sidebar.collapse .menu-item {
-  padding: 12px;
-  justify-content: center;
+/* 底部信息 */
+.sidebar-footer {
+  padding: 20px 16px 24px;
+  font-size: 11px;
+  color: #7f8daa;
+  border-top: 1px solid #2c3a55;
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* 内容区域 */
