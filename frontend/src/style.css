@@ -1,3 +1,7 @@
+/* 引入 Tinper-Next 风格主题 */
+@import './styles/tinper-theme.css';
+@import './styles/components.css';
+
 * {
   margin: 0;
   padding: 0;
@@ -7,19 +11,66 @@
 html, body, #app {
   height: 100%;
   width: 100%;
-  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica,
+    Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* Element Plus 样式覆盖 - 使其符合 Tinper 风格 */
+.el-button--primary {
+  background-color: #1E88E5 !important;
+  border-color: #1E88E5 !important;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #dcdfe6;
-  border-radius: 3px;
+.el-button--primary:hover {
+  background-color: #42A5F5 !important;
+  border-color: #42A5F5 !important;
 }
 
-::-webkit-scrollbar-track {
-  background: #f5f7fa;
+.el-button--success {
+  background-color: #52C41A !important;
+  border-color: #52C41A !important;
+}
+
+.el-button--danger {
+  background-color: #F5222D !important;
+  border-color: #F5222D !important;
+}
+
+.el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px #C0C4CC inset !important;
+}
+
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px #1E88E5 inset !important;
+}
+
+.el-table th.el-table__cell {
+  background-color: #F5F7FA !important;
+  color: #333 !important;
+  font-weight: 600 !important;
+}
+
+.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background: #F5F7FA !important;
+}
+
+.el-tag--primary {
+  background-color: rgba(30, 136, 229, 0.1) !important;
+  border-color: rgba(30, 136, 229, 0.2) !important;
+  color: #1E88E5 !important;
+}
+
+.el-tag--success {
+  background-color: rgba(82, 196, 26, 0.1) !important;
+  border-color: rgba(82, 196, 26, 0.2) !important;
+  color: #52C41A !important;
+}
+
+.el-tag--danger {
+  background-color: rgba(245, 34, 45, 0.1) !important;
+  border-color: rgba(245, 34, 45, 0.2) !important;
+  color: #F5222D !important;
 }
