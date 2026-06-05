@@ -23,6 +23,23 @@ const currentTime = computed(() => {
   return now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 })
 
+const greetingTime = computed(() => {
+  const hour = new Date().getHours()
+  if (hour >= 6 && hour < 9) {
+    return '早上好'
+  } else if (hour >= 9 && hour < 12) {
+    return '上午好'
+  } else if (hour >= 12 && hour < 14) {
+    return '中午好'
+  } else if (hour >= 14 && hour < 18) {
+    return '下午好'
+  } else if (hour >= 18 && hour < 22) {
+    return '晚上好'
+  } else {
+    return '夜深了'
+  }
+})
+
 // 功能模块数据
 const modules = ref([
   {
@@ -188,7 +205,7 @@ onMounted(() => {
       <div class="welcome-content">
         <div class="welcome-left">
           <h1 class="welcome-title">
-            <span class="greeting-time">下午好</span>
+            <span class="greeting-time">{{ greetingTime }}</span>
             <span class="user-name">{{ userStore.userInfo?.name }}</span>
           </h1>
           <p class="welcome-subtitle">MDM 主数据管理平台 · 让数据管理更简单高效</p>
