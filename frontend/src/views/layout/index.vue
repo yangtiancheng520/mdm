@@ -208,16 +208,15 @@ onMounted(() => {
   background: #F5F7FA;
 }
 
-/* 顶部导航栏 - 白色背景红色主题 */
+/* 顶部导航栏 - 浅蓝色背景红色主题 */
 .tinper-header {
   height: 64px;
-  background: #ffffff;
+  background: #f0f5fc;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-  border-bottom: 1px solid #e9edf2;
+  border-bottom: 1px solid #e2e9f5;
   z-index: 1000;
 }
 
