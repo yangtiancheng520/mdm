@@ -202,6 +202,15 @@ onMounted(() => {
   <div class="home-container">
     <!-- 顶部欢迎区域 -->
     <div class="welcome-header">
+      <!-- 装饰性数据节点 -->
+      <div class="decorative-nodes">
+        <div class="node node-1"></div>
+        <div class="node node-2"></div>
+        <div class="node node-3"></div>
+        <div class="node node-4"></div>
+        <div class="node node-5"></div>
+      </div>
+
       <div class="welcome-content">
         <div class="welcome-left">
           <h1 class="welcome-title">
@@ -333,33 +342,110 @@ onMounted(() => {
 
 /* 欢迎区域 */
 .welcome-header {
-  background: linear-gradient(135deg, #e62934 0%, #ff6b4a 100%);
+  background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 50%, #2563eb 100%);
   padding: 40px 32px;
   color: white;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
 }
 
+/* 装饰图案 - 几何网格 */
 .welcome-header::before {
   content: '';
   position: absolute;
-  top: -50%;
-  right: -10%;
-  width: 400px;
-  height: 400px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
 }
 
+/* 装饰图案 - 数据节点 */
 .welcome-header::after {
   content: '';
   position: absolute;
-  bottom: -30%;
-  left: 10%;
+  top: 50%;
+  right: 15%;
   width: 300px;
   height: 300px;
-  background: rgba(255, 255, 255, 0.05);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.08) 0%, transparent 70%);
   border-radius: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* 装饰性数据节点 */
+.decorative-nodes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.node {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  animation: node-float 6s ease-in-out infinite;
+}
+
+.node-1 {
+  width: 80px;
+  height: 80px;
+  top: 15%;
+  left: 8%;
+  animation-delay: 0s;
+}
+
+.node-2 {
+  width: 60px;
+  height: 60px;
+  top: 60%;
+  left: 15%;
+  animation-delay: 1s;
+}
+
+.node-3 {
+  width: 100px;
+  height: 100px;
+  top: 25%;
+  right: 25%;
+  animation-delay: 2s;
+}
+
+.node-4 {
+  width: 50px;
+  height: 50px;
+  bottom: 20%;
+  right: 18%;
+  animation-delay: 3s;
+}
+
+.node-5 {
+  width: 70px;
+  height: 70px;
+  top: 10%;
+  right: 8%;
+  animation-delay: 4s;
+}
+
+@keyframes node-float {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.1;
+  }
+  50% {
+    transform: translateY(-15px) scale(1.1);
+    opacity: 0.15;
+  }
 }
 
 .welcome-content {
@@ -392,22 +478,27 @@ onMounted(() => {
 }
 
 .datetime-card {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(10px);
   border-radius: 16px;
-  padding: 20px 32px;
+  padding: 24px 36px;
   text-align: right;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
 .time {
-  font-size: 36px;
+  font-size: 40px;
   font-weight: 700;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .date {
   font-size: 14px;
-  opacity: 0.9;
+  opacity: 0.95;
+  font-weight: 400;
 }
 
 /* 快速统计卡片 */
