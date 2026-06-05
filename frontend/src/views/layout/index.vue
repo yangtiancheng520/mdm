@@ -79,21 +79,30 @@ onMounted(() => {
     <header class="tinper-header">
       <div class="header-left">
         <div class="logo">
-          <div class="logo-icon">M</div>
-          <span class="logo-text">MDM 管理系统</span>
+          <div class="logo-icon">
+            <!-- MDM 品牌图标 - 数据节点与M形架构 -->
+            <svg viewBox="0 0 60 60" width="36" height="36" fill="none">
+              <!-- 数据节点 -->
+              <circle cx="18" cy="20" r="4" fill="white"/>
+              <circle cx="42" cy="20" r="4" fill="white"/>
+              <circle cx="30" cy="42" r="5" fill="white"/>
+              <!-- 连接线形成M形架构 -->
+              <path d="M18 20 L30 42 L42 20" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <!-- 中心数据汇聚横线 -->
+              <line x1="24" y1="32" x2="36" y2="32" stroke="white" stroke-width="2" stroke-dasharray="3 2"/>
+              <!-- 外扩数据节点 -->
+              <circle cx="12" cy="34" r="2.5" fill="white" fill-opacity="0.8"/>
+              <circle cx="48" cy="34" r="2.5" fill="white" fill-opacity="0.8"/>
+            </svg>
+          </div>
+          <div class="logo-text">
+            <div class="brand-name"><span>MDM</span> 主数据管理平台</div>
+          </div>
         </div>
       </div>
 
       <div class="header-right">
         <div class="header-actions">
-          <!-- 通知图标 -->
-          <div class="action-item">
-            <svg viewBox="0 0 24 24" width="20" height="20">
-              <path fill="currentColor" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
-            </svg>
-            <span class="badge">3</span>
-          </div>
-
           <!-- 用户信息 -->
           <div class="user-dropdown" @click="handleLogout">
             <div class="user-avatar">
@@ -115,16 +124,6 @@ onMounted(() => {
     <div class="tinper-main">
       <!-- 左侧菜单 - YonBIP深色风格 -->
       <aside class="yonbip-sidebar">
-        <!-- 搜索框 -->
-        <div class="search-wrapper">
-          <div class="search-box">
-            <svg viewBox="0 0 24 24" width="16" height="16">
-              <path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-            </svg>
-            <input type="text" placeholder="搜索菜单" />
-          </div>
-        </div>
-
         <!-- 菜单容器 -->
         <nav class="sidebar-menu">
           <div
@@ -210,12 +209,12 @@ onMounted(() => {
 
 /* 顶部导航栏 - 浅蓝色背景红色主题 */
 .tinper-header {
-  height: 64px;
+  height: 50px;
   background: #f0f5fc;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 24px;
+  padding: 0 20px;
   border-bottom: 1px solid #e2e9f5;
   z-index: 1000;
 }
@@ -229,31 +228,42 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #dd2222;
 }
 
 .logo-icon {
-  width: 36px;
-  height: 36px;
-  background: linear-gradient(135deg, #dd2222, #ff6b4a);
+  width: 34px;
+  height: 34px;
+  background: linear-gradient(145deg, #e31b23, #b01018);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
-  font-weight: bold;
-  color: white;
+  box-shadow: 0 4px 12px rgba(227, 27, 35, 0.25);
+  transition: all 0.3s;
+}
+
+.logo-icon:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(227, 27, 35, 0.35);
 }
 
 .logo-text {
-  font-size: 22px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #dd2222, #ff6b4a);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  letter-spacing: 1px;
+  display: flex;
+  flex-direction: column;
 }
+
+.brand-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2c3e50;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+.brand-name span {
+  color: #e31b23;
+}
+
 
 .header-right {
   display: flex;
@@ -264,35 +274,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 24px;
-}
-
-.action-item {
-  position: relative;
-  color: #5b6f8c;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.action-item:hover {
-  background: #f0f4f9;
-  border-radius: 50%;
-  color: #dd2222;
-}
-
-.badge {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  min-width: 18px;
-  height: 18px;
-  background: #F5222D;
-  border-radius: 9px;
-  font-size: 11px;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 4px;
 }
 
 .user-dropdown {
@@ -312,8 +293,8 @@ onMounted(() => {
 }
 
 .user-avatar {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   overflow: hidden;
   background: #ffe0d9;
@@ -336,13 +317,13 @@ onMounted(() => {
 }
 
 .user-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: #2c3e66;
 }
 
 .user-role {
-  font-size: 12px;
+  font-size: 11px;
   color: #8192aa;
 }
 
@@ -357,11 +338,11 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* 左侧菜单 - YonBIP深色风格 */
+/* 左侧菜单 - 深色风格 */
 .yonbip-sidebar {
-  width: 280px;
-  background-color: #1c2940;
-  color: #e0e6f0;
+  width: 180px;
+  background-color: #162439;
+  color: #e0e0e0;
   display: flex;
   flex-direction: column;
   box-shadow: 4px 0 12px rgba(0, 0, 0, 0.1);
@@ -375,80 +356,46 @@ onMounted(() => {
 }
 
 .yonbip-sidebar::-webkit-scrollbar-track {
-  background: #2a3a55;
+  background: #1d2d47;
 }
 
 .yonbip-sidebar::-webkit-scrollbar-thumb {
-  background: #4c6a8f;
+  background: #3a5070;
   border-radius: 6px;
-}
-
-/* 搜索框区域 */
-.search-wrapper {
-  padding: 20px 16px 16px 20px;
-  border-bottom: 1px solid #2c3a55;
-  margin-bottom: 12px;
-}
-
-.search-box {
-  background: #25334f;
-  border-radius: 28px;
-  padding: 10px 18px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  transition: all 0.2s;
-  border: 1px solid #3a4868;
-  color: #90a0c2;
-}
-
-.search-box input {
-  background: transparent;
-  border: none;
-  outline: none;
-  color: #f0f4fa;
-  font-size: 14px;
-  width: 100%;
-  letter-spacing: 0.3px;
-}
-
-.search-box input::placeholder {
-  color: #7a89aa;
-  font-weight: 400;
-}
-
-.search-box:focus-within {
-  border-color: #5d7bb2;
-  background: #2a3857;
 }
 
 /* 菜单容器 */
 .sidebar-menu {
   flex: 1;
-  padding: 8px 12px 20px 12px;
+  padding: 16px 10px 16px 10px;
   overflow-y: auto;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 12px;
-  color: #e2e8f2;
+  gap: 10px;
+  padding: 10px 10px;
+  color: #fff;
   cursor: pointer;
   transition: all 0.2s;
-  border-radius: 12px;
+  border-radius: 10px;
   margin: 2px 0;
   font-weight: 500;
-  font-size: 15px;
+  font-size: 12px;
 }
 
 .menu-item:hover {
-  background: #2a3a58;
+  background: #1d2d47;
+  color: #fff;
 }
 
 .menu-item.active {
-  background: #2f4170;
+  background: #2a3d5c;
+  color: white;
+}
+
+.menu-item.active .menu-icon {
   color: white;
 }
 
@@ -456,21 +403,26 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 22px;
-  color: #9aaeca;
+  min-width: 18px;
+  color: #fff;
+}
+
+.menu-icon svg {
+  width: 18px;
+  height: 18px;
 }
 
 .menu-title {
-  font-size: 15px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
 /* 底部信息 */
 .sidebar-footer {
-  padding: 20px 16px 24px;
+  padding: 16px 12px 20px;
   font-size: 11px;
-  color: #7f8daa;
-  border-top: 1px solid #2c3a55;
+  color: #6a7a95;
+  border-top: 1px solid #1d2d47;
   margin-top: auto;
   display: flex;
   align-items: center;
@@ -496,18 +448,18 @@ onMounted(() => {
   display: flex;
   gap: 4px;
   overflow-x: auto;
-  height: 48px;
+  height: 34px;
   align-items: center;
 }
 
 .tab-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 16px;
-  height: 40px;
+  gap: 6px;
+  padding: 0 12px;
+  height: 28px;
   border-radius: 4px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: #5b6e8c;
   cursor: pointer;
