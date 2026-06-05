@@ -208,15 +208,16 @@ onMounted(() => {
   background: #F5F7FA;
 }
 
-/* 顶部导航栏 */
+/* 顶部导航栏 - 白色背景红色主题 */
 .tinper-header {
-  height: 56px;
-  background: linear-gradient(135deg, #1E88E5 0%, #1565C0 100%);
+  height: 64px;
+  background: #ffffff;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  border-bottom: 1px solid #e9edf2;
   z-index: 1000;
 }
 
@@ -229,26 +230,30 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: white;
+  color: #dd2222;
 }
 
 .logo-icon {
   width: 36px;
   height: 36px;
-  background: rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, #dd2222, #ff6b4a);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 20px;
   font-weight: bold;
-  backdrop-filter: blur(10px);
+  color: white;
 }
 
 .logo-text {
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  font-size: 22px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #dd2222, #ff6b4a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: 1px;
 }
 
 .header-right {
@@ -264,14 +269,15 @@ onMounted(() => {
 
 .action-item {
   position: relative;
-  color: white;
+  color: #5b6f8c;
   cursor: pointer;
-  opacity: 0.9;
-  transition: opacity 0.3s;
+  transition: all 0.2s;
 }
 
 .action-item:hover {
-  opacity: 1;
+  background: #f0f4f9;
+  border-radius: 50%;
+  color: #dd2222;
 }
 
 .badge {
@@ -294,23 +300,29 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: white;
+  color: #4a5b6e;
   cursor: pointer;
   padding: 6px 12px;
-  border-radius: 4px;
-  transition: background 0.3s;
+  border-radius: 40px;
+  transition: all 0.2s;
 }
 
 .user-dropdown:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: #f0f4f9;
+  color: #dd2222;
 }
 
 .user-avatar {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   overflow: hidden;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: #ffe0d9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c52a2a;
+  font-weight: bold;
 }
 
 .user-avatar img {
@@ -327,15 +339,16 @@ onMounted(() => {
 .user-name {
   font-size: 14px;
   font-weight: 500;
+  color: #2c3e66;
 }
 
 .user-role {
   font-size: 12px;
-  opacity: 0.8;
+  color: #8192aa;
 }
 
 .dropdown-icon {
-  opacity: 0.7;
+  color: #8192aa;
 }
 
 /* 主体区域 */
@@ -473,63 +486,58 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* 标签页导航 */
+/* 标签页导航 - 小圆角红色主题 */
 .tabs-wrapper {
   background: white;
-  border-bottom: 1px solid #E4E7ED;
-  padding: 8px 16px 0;
+  border-bottom: 1px solid #e9edf2;
+  padding: 0 16px;
 }
 
 .tabs-container {
   display: flex;
   gap: 4px;
   overflow-x: auto;
-  padding-bottom: 8px;
+  height: 48px;
+  align-items: center;
 }
 
 .tab-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
-  background: #F5F7FA;
-  border-radius: 4px 4px 0 0;
+  padding: 0 16px;
+  height: 40px;
+  border-radius: 4px;
   font-size: 13px;
-  color: #606266;
+  font-weight: 500;
+  color: #5b6e8c;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s;
   white-space: nowrap;
-  border: 1px solid #E4E7ED;
-  border-bottom: none;
+  background: #f8fafc;
 }
 
 .tab-item:hover {
-  background: white;
-  color: #1E88E5;
+  background: #eef2f8;
+  color: #dd2222;
 }
 
 .tab-item.active {
-  background: white;
-  color: #1E88E5;
-  font-weight: 500;
+  background: #ffece5;
+  color: #dd2222;
 }
 
 .tab-close {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin-left: 4px;
   font-size: 14px;
+  cursor: pointer;
   opacity: 0.6;
-  transition: all 0.3s;
+  color: #99aac6;
 }
 
 .tab-close:hover {
-  background: #F5222D;
-  color: white;
   opacity: 1;
+  color: #dd2222;
 }
 
 /* 页面内容 */
