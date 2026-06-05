@@ -4,10 +4,17 @@
  */
 
 :root {
-  /* 主色调 - 用友蓝 */
-  --primary-color: #1E88E5;
-  --primary-light-color: #42A5F5;
-  --primary-dark-color: #1565C0;
+  /* 主色调 - YonBIP 蓝色 */
+  --primary-color: #60a5fa;
+  --primary-light-color: #93c5fd;
+  --primary-dark-color: #3b82f6;
+
+  /* YonBIP 深色侧边栏配色 */
+  --sidebar-bg: #1c2940;
+  --sidebar-hover: #2a3a58;
+  --sidebar-active: #2f4170;
+  --sidebar-text: #e0e6f0;
+  --sidebar-icon: #9aaeca;
 
   /* 辅助色 */
   --success-color: #52C41A;
