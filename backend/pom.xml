@@ -12,10 +12,10 @@
     </parent>
 
     <groupId>com.vueadmin</groupId>
-    <artifactId>vue-admin-backend</artifactId>
+    <artifactId>mdm-backend</artifactId>
     <version>1.0.0</version>
-    <name>vue-admin-backend</name>
-    <description>Vue Admin Backend with Spring Boot</description>
+    <name>mdm-backend</name>
+    <description>MDM 主数据管理平台后端 - Spring Boot</description>
 
     <properties>
         <java.version>17</java.version>

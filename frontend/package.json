@@ -1,7 +1,8 @@
 {
-  "name": "vue-admin-java-frontend",
+  "name": "mdm-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "MDM 主数据管理平台前端",
   "type": "module",
   "scripts": {
     "dev": "vite",
