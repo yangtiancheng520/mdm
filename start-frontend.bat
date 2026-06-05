@@ -1,23 +1,23 @@
 @echo off
 chcp 65001 >nul
 echo ========================================
-echo    启动前端服务 - Vue 3
+echo    Start Frontend - Vue 3
 echo ========================================
 echo.
 
 cd /d "%~dp0frontend"
 
-echo [1/2] 检查依赖是否安装...
+echo [1/2] Check dependencies...
 if not exist "node_modules" (
-    echo [!] node_modules 不存在，正在安装依赖...
+    echo [!] node_modules not found, installing dependencies...
     npm install
 )
 
-echo [✓] 依赖已安装
+echo [OK] Dependencies ready
 
 echo.
-echo [2/2] 启动前端服务...
-echo 服务地址: http://localhost:9000
+echo [2/2] Start frontend service...
+echo Service URL: http://localhost:9000
 echo.
 
 npm run dev

@@ -1,0 +1,101 @@
+server:
+  port: 3000
+
+spring:
+  application:
+    name: mdm-backend
+
+  # 数据源配置
+  datasource:
+    url: jdbc:mysql://localhost:3306/mdm?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8&allowPublicKeyRetrieval=true
+    username: root
+    password: admin
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 30000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+
+  # JPA配置
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+
+  # Redis配置
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 0
+      timeout: 10000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-wait: -1ms
+          max-idle: 8
+          min-idle: 0
+
+  # Jackson配置
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    serialization:
+      write-dates-as-timestamps: false
+
+  # 文件上传配置
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+# JWT配置
+jwt:
+  secret: MDM-Secret-Key-For-JWT-Token-Generation-2024-Please-Change-In-Production
+  expiration: 86400000  # 24小时
+  header: Authorization
+  prefix: Bearer
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.vueadmin: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"
+  file:
+    name: logs/mdm-backend.log
+
+# SpringDoc配置
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+# MDM系统配置
+mdm:
+  # 编码规则配置
+  encoding:
+    default-prefix: MD
+    sequence-length: 6
+  # 分发配置
+  distribution:
+    retry-count: 3
+    retry-interval: 5000
+  # 质量检测配置
+  quality:
+    batch-size: 1000

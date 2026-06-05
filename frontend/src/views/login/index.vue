@@ -38,6 +38,10 @@ async function handleLogin() {
       roles: res.data.user.roles,
       permissions: res.data.user.permissions
     })
+
+    // 获取用户菜单
+    await userStore.fetchMenus()
+
     ElMessage.success('登录成功')
     router.push('/')
   } catch (error) {

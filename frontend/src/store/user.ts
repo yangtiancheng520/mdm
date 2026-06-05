@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { getUserMenu, type Menu } from '../api/menu'
 
 export interface UserInfo {
   id: number
@@ -16,6 +17,7 @@ export const useUserStore = defineStore('user', () => {
   const token = ref(localStorage.getItem('token') || '')
   const userInfo = ref<UserInfo | null>(null)
   const permissions = ref<string[]>([])
+  const menus = ref<Menu[]>([])
 
   const isLogin = computed(() => !!token.value)
 
@@ -28,8 +30,17 @@ export const useUserStore = defineStore('user', () => {
         userInfo.value = info
         permissions.value = info.permissions || []
       } catch {
-        // 解析失败，清除
         localStorage.removeItem('userInfo')
+      }
+    }
+
+    // 恢复菜单
+    const savedMenus = localStorage.getItem('menus')
+    if (savedMenus) {
+      try {
+        menus.value = JSON.parse(savedMenus)
+      } catch {
+        localStorage.removeItem('menus')
       }
     }
   }
@@ -45,12 +56,31 @@ export const useUserStore = defineStore('user', () => {
     localStorage.setItem('userInfo', JSON.stringify(info))
   }
 
+  function setMenus(menuList: Menu[]) {
+    menus.value = menuList
+    localStorage.setItem('menus', JSON.stringify(menuList))
+  }
+
+  // 获取用户菜单
+  async function fetchMenus() {
+    try {
+      const res = await getUserMenu()
+      setMenus(res.data || [])
+      return res.data
+    } catch (error) {
+      console.error('获取菜单失败', error)
+      return []
+    }
+  }
+
   function logout() {
     token.value = ''
     userInfo.value = null
     permissions.value = []
+    menus.value = []
     localStorage.removeItem('token')
     localStorage.removeItem('userInfo')
+    localStorage.removeItem('menus')
   }
 
   function hasPermission(permission: string): boolean {
@@ -65,9 +95,12 @@ export const useUserStore = defineStore('user', () => {
     token,
     userInfo,
     permissions,
+    menus,
     isLogin,
     setToken,
     setUserInfo,
+    setMenus,
+    fetchMenus,
     logout,
     hasPermission
   }

@@ -14,7 +14,7 @@ const searchType = ref('')
 
 // 弹窗
 const dialogVisible = ref(false)
-const dialogTitle = ref('新增权限')
+const dialogTitle = ref('新增菜单')
 
 // 确认对话框
 const confirmVisible = ref(false)
@@ -68,7 +68,7 @@ function handleReset() {
 
 // 新增
 function handleAdd() {
-  dialogTitle.value = '新增权限'
+  dialogTitle.value = '新增菜单'
   form.value = {
     name: '',
     code: '',
@@ -84,7 +84,7 @@ function handleAdd() {
 
 // 编辑
 function handleEdit(row: Permission) {
-  dialogTitle.value = '编辑权限'
+  dialogTitle.value = '编辑菜单'
   form.value = {
     id: row.id,
     name: row.name,
@@ -101,7 +101,7 @@ function handleEdit(row: Permission) {
 
 // 删除
 function handleDelete(row: Permission) {
-  confirmMessage.value = `确定要删除权限「${row.name}」吗？`
+  confirmMessage.value = `确定要删除菜单「${row.name}」吗？`
   confirmAction.value = async () => {
     await deletePermission(row.id)
     ElMessage.success('删除成功')
@@ -157,7 +157,7 @@ onMounted(() => {
     <div class="mdm-top-bar">
       <div class="mdm-filter-row">
         <div class="mdm-filter-item">
-          <input v-model="searchName" type="text" placeholder="权限名称" @keyup.enter="handleSearch" />
+          <input v-model="searchName" type="text" placeholder="菜单名称" @keyup.enter="handleSearch" />
         </div>
         <div class="mdm-filter-item">
           <select v-model="searchType" @change="handleSearch">
@@ -181,8 +181,8 @@ onMounted(() => {
             <th style="width: 40px">
               <input type="checkbox" />
             </th>
-            <th>权限名称</th>
-            <th>权限编码</th>
+            <th>菜单名称</th>
+            <th>菜单编码</th>
             <th>类型</th>
             <th>路径</th>
             <th>图标</th>
@@ -246,12 +246,12 @@ onMounted(() => {
     <!-- 弹窗 -->
     <MdmDialog v-model="dialogVisible" :title="dialogTitle" width="550px">
       <div class="mdm-form-row">
-        <div class="mdm-form-label required"><em>*</em>权限名称</div>
-        <input v-model="form.name" class="mdm-input-yellow" placeholder="请输入权限名称" />
+        <div class="mdm-form-label required"><em>*</em>菜单名称</div>
+        <input v-model="form.name" class="mdm-input-yellow" placeholder="请输入菜单名称" />
       </div>
       <div class="mdm-form-row">
-        <div class="mdm-form-label required"><em>*</em>权限编码</div>
-        <input v-model="form.code" class="mdm-input-yellow" placeholder="请输入权限编码，如：user:view" />
+        <div class="mdm-form-label required"><em>*</em>菜单编码</div>
+        <input v-model="form.code" class="mdm-input-yellow" placeholder="请输入菜单编码，如：user:view" />
       </div>
       <div class="mdm-form-row">
         <div class="mdm-form-label required"><em>*</em>类型</div>

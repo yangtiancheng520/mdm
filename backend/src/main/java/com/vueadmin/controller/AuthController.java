@@ -1,5 +1,7 @@
 package com.vueadmin.controller;
 
+import com.vueadmin.config.security.JwtAuthenticationFilter;
+import com.vueadmin.config.security.JwtTokenProvider;
 import com.vueadmin.dto.*;
 import com.vueadmin.entity.User;
 import com.vueadmin.service.UserService;
@@ -14,6 +16,8 @@ import java.util.*;
 public class AuthController {
 
     private final UserService userService;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @PostMapping("/login")
     public ApiResponse<?> login(@RequestBody Map<String, String> params) {
@@ -28,6 +32,12 @@ public class AuthController {
         List<String> roles = userService.getRoleNamesByUserId(user.getId());
         List<String> permissions = userService.getPermissionCodesByUserId(user.getId());
 
+        // 生成真正的JWT Token
+        String token = jwtTokenProvider.generateToken(user.getId(), user.getAccount(), user.getName());
+
+        // 将Token存入Redis
+        jwtAuthenticationFilter.storeToken(user.getAccount(), token);
+
         Map<String, Object> userInfo = new HashMap<>();
         userInfo.put("id", user.getId());
         userInfo.put("account", user.getAccount());
@@ -37,7 +47,7 @@ public class AuthController {
         userInfo.put("permissions", permissions);
 
         Map<String, Object> data = new HashMap<>();
-        data.put("token", "token_" + user.getId() + "_" + System.currentTimeMillis());
+        data.put("token", token);
         data.put("user", userInfo);
 
         return ApiResponse.success(data);
