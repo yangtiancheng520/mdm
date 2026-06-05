@@ -1,17 +1,25 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { getPermissionList, createPermission, updatePermission, deletePermission, type Permission, type PermissionForm } from '../../../api/permission'
+import MdmDialog from '../../../components/MdmDialog.vue'
+import MdmConfirmDialog from '../../../components/MdmConfirmDialog.vue'
 
 const tableData = ref<Permission[]>([])
 const loading = ref(false)
 
 // 搜索
 const searchName = ref('')
+const searchType = ref('')
 
 // 弹窗
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增权限')
+
+// 确认对话框
+const confirmVisible = ref(false)
+const confirmMessage = ref('')
+const confirmAction = ref<(() => void) | null>(null)
 
 // 表单
 const form = ref<PermissionForm>({
@@ -25,11 +33,10 @@ const form = ref<PermissionForm>({
   status: 'active'
 })
 
-// 权限类型选项
-const typeOptions = [
-  { label: '菜单', value: 'menu' },
-  { label: '按钮', value: 'button' }
-]
+// 分页
+const currentPage = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
 
 // 获取权限列表
 async function fetchData() {
@@ -37,6 +44,7 @@ async function fetchData() {
   try {
     const res = await getPermissionList({ name: searchName.value })
     tableData.value = res.data.list
+    total.value = res.data.total || res.data.list.length
   } catch (error) {
     console.error(error)
   } finally {
@@ -46,12 +54,15 @@ async function fetchData() {
 
 // 搜索
 function handleSearch() {
+  currentPage.value = 1
   fetchData()
 }
 
 // 重置
 function handleReset() {
   searchName.value = ''
+  searchType.value = ''
+  currentPage.value = 1
   fetchData()
 }
 
@@ -90,13 +101,20 @@ function handleEdit(row: Permission) {
 
 // 删除
 function handleDelete(row: Permission) {
-  ElMessageBox.confirm(`确定要删除权限「${row.name}」吗？`, '提示', {
-    type: 'warning'
-  }).then(async () => {
+  confirmMessage.value = `确定要删除权限「${row.name}」吗？`
+  confirmAction.value = async () => {
     await deletePermission(row.id)
     ElMessage.success('删除成功')
     fetchData()
-  }).catch(() => {})
+  }
+  confirmVisible.value = true
+}
+
+// 确认删除
+function handleConfirmDelete() {
+  if (confirmAction.value) {
+    confirmAction.value()
+  }
 }
 
 // 提交
@@ -116,109 +134,173 @@ async function handleSubmit() {
   }
 }
 
+// 分页
+function handlePageChange(page: number) {
+  currentPage.value = page
+  fetchData()
+}
+
+function handleSizeChange(size: number) {
+  pageSize.value = size
+  currentPage.value = 1
+  fetchData()
+}
+
 onMounted(() => {
   fetchData()
 })
 </script>
 
 <template>
-  <div class="permission-container">
-    <!-- 搜索栏 -->
-    <el-card class="search-card">
-      <el-form :inline="true">
-        <el-form-item label="权限名称">
-          <el-input v-model="searchName" placeholder="请输入权限名称" clearable />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSearch">搜索</el-button>
-          <el-button @click="handleReset">重置</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
-
-    <!-- 表格 -->
-    <el-card>
-      <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span>权限列表</span>
-          <el-button type="primary" @click="handleAdd">新增权限</el-button>
+  <div class="mdm-container">
+    <!-- 顶部操作栏 -->
+    <div class="mdm-top-bar">
+      <div class="mdm-filter-row">
+        <div class="mdm-filter-item">
+          <input v-model="searchName" type="text" placeholder="权限名称" @keyup.enter="handleSearch" />
         </div>
-      </template>
+        <div class="mdm-filter-item">
+          <select v-model="searchType" @change="handleSearch">
+            <option value="">全部类型</option>
+            <option value="menu">菜单</option>
+            <option value="button">按钮</option>
+          </select>
+        </div>
+      </div>
+      <div class="mdm-right-group">
+        <button class="mdm-btn-red" @click="handleAdd">+ 新增</button>
+        <button class="mdm-btn-outline" @click="handleSearch">查询</button>
+      </div>
+    </div>
 
-      <el-table v-loading="loading" :data="tableData" border row-key="id">
-        <el-table-column prop="name" label="权限名称" width="150" />
-        <el-table-column prop="code" label="权限编码" width="150" />
-        <el-table-column label="类型" width="80">
-          <template #default="{ row }">
-            <el-tag :type="row.type === 'menu' ? 'primary' : 'warning'">
-              {{ row.type === 'menu' ? '菜单' : '按钮' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="path" label="路径" width="120" />
-        <el-table-column prop="icon" label="图标" width="100" />
-        <el-table-column prop="sort" label="排序" width="80" />
-        <el-table-column label="状态" width="80">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 'active' ? 'success' : 'danger'">
-              {{ row.status === 'active' ? '启用' : '禁用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createdAt" label="创建时间" width="180" />
-        <el-table-column label="操作" width="150" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+    <!-- 数据表格 -->
+    <div class="mdm-table-wrapper">
+      <table class="mdm-data-table">
+        <thead>
+          <tr>
+            <th style="width: 40px">
+              <input type="checkbox" />
+            </th>
+            <th>权限名称</th>
+            <th>权限编码</th>
+            <th>类型</th>
+            <th>路径</th>
+            <th>图标</th>
+            <th>排序</th>
+            <th>状态</th>
+            <th>创建时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody v-loading="loading">
+          <tr v-for="row in tableData" :key="row.id">
+            <td>
+              <input type="checkbox" />
+            </td>
+            <td>{{ row.name }}</td>
+            <td>{{ row.code }}</td>
+            <td>
+              <span :class="['mdm-type-tag', row.type]">
+                {{ row.type === 'menu' ? '菜单' : '按钮' }}
+              </span>
+            </td>
+            <td>{{ row.path || '—' }}</td>
+            <td>{{ row.icon || '—' }}</td>
+            <td>{{ row.sort }}</td>
+            <td>
+              <div class="mdm-status-badge">
+                <span :class="row.status === 'active' ? 'mdm-green-dot' : 'mdm-red-dot'"></span>
+                {{ row.status === 'active' ? '启用' : '禁用' }}
+              </div>
+            </td>
+            <td>{{ row.createdAt }}</td>
+            <td>
+              <div class="mdm-action-buttons">
+                <button class="mdm-action-btn" @click="handleEdit(row)">编辑</button>
+                <button class="mdm-action-btn delete" @click="handleDelete(row)">删除</button>
+              </div>
+            </td>
+          </tr>
+          <tr v-if="tableData.length === 0 && !loading">
+            <td colspan="10" class="mdm-empty-data">暂无数据</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 分页 -->
+    <div class="mdm-pagination">
+      <span class="mdm-pagination-total">共 {{ total }} 条</span>
+      <button class="mdm-page-btn" @click="handlePageChange(1)">◀◀</button>
+      <button class="mdm-page-btn" @click="handlePageChange(currentPage - 1)">‹</button>
+      <button class="mdm-page-btn active">{{ currentPage }}</button>
+      <button class="mdm-page-btn" @click="handlePageChange(currentPage + 1)">›</button>
+      <button class="mdm-page-btn" @click="handlePageChange(Math.ceil(total / pageSize))">▶▶</button>
+      <select class="mdm-page-select" v-model="pageSize" @change="handleSizeChange(pageSize)">
+        <option :value="10">10条/页</option>
+        <option :value="20">20条/页</option>
+        <option :value="50">50条/页</option>
+      </select>
+    </div>
 
     <!-- 弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px">
-      <el-form :model="form" label-width="80px">
-        <el-form-item label="权限名称" required>
-          <el-input v-model="form.name" placeholder="请输入权限名称" />
-        </el-form-item>
-        <el-form-item label="权限编码" required>
-          <el-input v-model="form.code" placeholder="请输入权限编码，如：user:view" />
-        </el-form-item>
-        <el-form-item label="类型" required>
-          <el-select v-model="form.type" placeholder="请选择类型">
-            <el-option v-for="item in typeOptions" :key="item.value" :label="item.label" :value="item.value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="路径">
-          <el-input v-model="form.path" placeholder="请输入路径" />
-        </el-form-item>
-        <el-form-item label="图标">
-          <el-input v-model="form.icon" placeholder="请输入图标名称" />
-        </el-form-item>
-        <el-form-item label="排序">
-          <el-input-number v-model="form.sort" :min="0" />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-radio-group v-model="form.status">
-            <el-radio value="active">启用</el-radio>
-            <el-radio value="inactive">禁用</el-radio>
-          </el-radio-group>
-        </el-form-item>
-      </el-form>
+    <MdmDialog v-model="dialogVisible" :title="dialogTitle" width="550px">
+      <div class="mdm-form-row">
+        <div class="mdm-form-label required"><em>*</em>权限名称</div>
+        <input v-model="form.name" class="mdm-input-yellow" placeholder="请输入权限名称" />
+      </div>
+      <div class="mdm-form-row">
+        <div class="mdm-form-label required"><em>*</em>权限编码</div>
+        <input v-model="form.code" class="mdm-input-yellow" placeholder="请输入权限编码，如：user:view" />
+      </div>
+      <div class="mdm-form-row">
+        <div class="mdm-form-label required"><em>*</em>类型</div>
+        <select v-model="form.type" class="mdm-select">
+          <option value="menu">菜单</option>
+          <option value="button">按钮</option>
+        </select>
+      </div>
+      <div class="mdm-form-row">
+        <div class="mdm-form-label">路径</div>
+        <input v-model="form.path" class="mdm-input-normal" placeholder="请输入路径" />
+      </div>
+      <div class="mdm-form-row">
+        <div class="mdm-form-label">图标</div>
+        <input v-model="form.icon" class="mdm-input-normal" placeholder="请输入图标名称" />
+      </div>
+      <div class="mdm-form-row">
+        <div class="mdm-form-label">排序</div>
+        <input v-model.number="form.sort" type="number" class="mdm-input-normal" placeholder="请输入排序" />
+      </div>
+      <div class="mdm-form-row">
+        <div class="mdm-form-label required"><em>*</em>状态</div>
+        <div class="mdm-radio-group">
+          <label class="mdm-radio-item">
+            <input type="radio" v-model="form.status" value="active" />
+            启用
+          </label>
+          <label class="mdm-radio-item">
+            <input type="radio" v-model="form.status" value="inactive" />
+            禁用
+          </label>
+        </div>
+      </div>
+
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">确定</el-button>
+        <button class="mdm-btn-cancel" @click="dialogVisible = false">取消</button>
+        <button class="mdm-btn-primary" @click="handleSubmit">确定</button>
       </template>
-    </el-dialog>
+    </MdmDialog>
+
+    <!-- 确认对话框 -->
+    <MdmConfirmDialog
+      v-model="confirmVisible"
+      :message="confirmMessage"
+      @confirm="handleConfirmDelete"
+    />
   </div>
 </template>
 
 <style scoped>
-.permission-container {
-  height: 100%;
-}
-
-.search-card {
-  margin-bottom: 20px;
-}
+@import '../../../assets/styles/mdm-common.scss';
 </style>

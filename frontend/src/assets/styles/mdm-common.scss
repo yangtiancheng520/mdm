@@ -1,0 +1,486 @@
+/* ================================
+   MDM 主数据管理平台 - 公共样式表
+   ================================ */
+
+/* ==================== 容器样式 ==================== */
+.mdm-container {
+  background: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  padding: 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ==================== 顶部操作栏 ==================== */
+.mdm-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mdm-filter-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mdm-right-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ==================== 按钮样式 ==================== */
+.mdm-btn-outline {
+  padding: 5px 12px;
+  background: white;
+  border: 1px solid #d4d7dc;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: 0.2s;
+  color: #1e293b;
+}
+
+.mdm-btn-outline:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #ed2b33;
+  color: #ed2b33;
+}
+
+.mdm-btn-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mdm-btn-red {
+  background: #ed2b33;
+  border: none;
+  padding: 5px 14px;
+  border-radius: 4px;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 0.2s;
+  font-size: 13px;
+}
+
+.mdm-btn-red:hover {
+  background: #c81e2c;
+}
+
+/* ==================== 筛选项样式 ==================== */
+.mdm-filter-item {
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 1px solid #d4d7dc;
+  border-radius: 4px;
+  overflow: hidden;
+  min-width: 120px;
+}
+
+.mdm-filter-item input,
+.mdm-filter-item select {
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  color: #1e2a3e;
+}
+
+.mdm-filter-item select {
+  cursor: pointer;
+  background: transparent;
+}
+
+/* ==================== 表格样式 ==================== */
+.mdm-table-wrapper {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.mdm-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.mdm-data-table th {
+  background: #eff1f6;
+  padding: 10px;
+  text-align: left;
+  font-weight: 600;
+  color: #000000;
+  border-bottom: 1px solid #e2e8f0;
+  border-top: 1px solid #8899aa;
+  font-size: 13px;
+}
+
+.mdm-data-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #edf2f7;
+  vertical-align: middle;
+  color: #000000;
+}
+
+.mdm-data-table tr:hover td {
+  background: #fef9f5;
+}
+
+/* 复选框样式 */
+.mdm-data-table input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid #d4d7dc;
+  border-radius: 2px;
+  background: white;
+  position: relative;
+}
+
+.mdm-data-table input[type="checkbox"]:checked {
+  background: white;
+  border-color: #64748b;
+}
+
+.mdm-data-table input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid #ed2b33;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* ==================== 状态标签样式 ==================== */
+.mdm-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mdm-green-dot {
+  width: 8px;
+  height: 8px;
+  background: #2ac976;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.mdm-red-dot {
+  width: 8px;
+  height: 8px;
+  background: #ef4444;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* ==================== 类型标签样式 ==================== */
+.mdm-type-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.mdm-type-tag.menu {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.mdm-type-tag.button {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+/* ==================== 操作按钮样式 ==================== */
+.mdm-action-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.mdm-action-btn {
+  background: none;
+  border: none;
+  color: #5b6e8c;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.mdm-action-btn:hover {
+  background: #ed2b33;
+  color: white;
+}
+
+.mdm-action-btn.delete:hover {
+  background: #ef4444;
+}
+
+/* ==================== 分页样式 ==================== */
+.mdm-pagination {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 5px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.mdm-page-btn {
+  min-width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d4d7dc;
+  background: white;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: 0.2s;
+  font-size: 12px;
+  padding: 0 5px;
+  color: #334155;
+}
+
+.mdm-page-btn.active {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.mdm-page-btn:hover:not(.active) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.mdm-page-select {
+  padding: 3px 5px;
+  border: 1px solid #d4d7dc;
+  border-radius: 3px;
+  background: white;
+  font-size: 12px;
+  cursor: pointer;
+  color: #334155;
+}
+
+.mdm-pagination-total {
+  color: #5b6e8c;
+  font-size: 13px;
+}
+
+/* ====================
+   对话框表单样式
+   ==================== */
+
+/* 表单行 */
+.mdm-form-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+/* 表单标签 */
+.mdm-form-label {
+  width: 80px;
+  text-align: right;
+  padding-right: 10px;
+  font-size: 13px;
+  color: #111111;
+  flex-shrink: 0;
+}
+
+.mdm-form-label.required em {
+  color: #ed2b33;
+  font-style: normal;
+  margin-right: 2px;
+}
+
+/* 输入框 - 必填项黄色背景 */
+.mdm-input-yellow {
+  flex: 1;
+  background: #fffbd9;
+  border: 1px solid #ed2b33;
+  padding: 5px 8px;
+  border-radius: 3px;
+  font-size: 13px;
+  color: #111111;
+  outline: none;
+  height: 30px;
+  line-height: 30px;
+}
+
+.mdm-input-yellow:focus {
+  border-color: #c81e2c;
+}
+
+.mdm-input-yellow::placeholder {
+  color: #94a3b8;
+}
+
+/* 输入框 - 普通白色背景 */
+.mdm-input-normal {
+  flex: 1;
+  background: #ffffff;
+  border: 1px solid #b9c2d3;
+  padding: 5px 8px;
+  border-radius: 3px;
+  font-size: 13px;
+  color: #111111;
+  outline: none;
+  height: 30px;
+  line-height: 30px;
+}
+
+.mdm-input-normal:focus {
+  border-color: #ed2b33;
+}
+
+.mdm-input-normal::placeholder {
+  color: #94a3b8;
+}
+
+/* 下拉框 */
+.mdm-select {
+  flex: 1;
+  background: #ffffff;
+  border: 1px solid #b9c2d3;
+  padding: 5px 8px;
+  border-radius: 3px;
+  font-size: 13px;
+  color: #111111;
+  outline: none;
+  cursor: pointer;
+  height: 30px;
+}
+
+.mdm-select:focus {
+  border-color: #ed2b33;
+}
+
+/* 文本域 */
+.mdm-textarea {
+  flex: 1;
+  background: #ffffff;
+  border: 1px solid #b9c2d3;
+  padding: 5px 8px;
+  border-radius: 3px;
+  font-size: 13px;
+  color: #111111;
+  outline: none;
+  min-height: 60px;
+  resize: vertical;
+}
+
+.mdm-textarea:focus {
+  border-color: #ed2b33;
+}
+
+/* 单选框组 */
+.mdm-radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.mdm-radio-item {
+  margin-right: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: #111111;
+  cursor: pointer;
+}
+
+.mdm-radio-item input[type="radio"] {
+  width: 13px;
+  height: 13px;
+  cursor: pointer;
+  accent-color: #ed2b33;
+}
+
+/* 对话框按钮 */
+.mdm-btn-cancel {
+  padding: 0 18px;
+  border: 1px solid #d4d7dc;
+  background: #f5f6f8;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #333;
+  height: 28px;
+  min-width: 60px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.mdm-btn-cancel:hover {
+  opacity: 0.9;
+  background: #ebedf0;
+}
+
+.mdm-btn-primary {
+  padding: 0 18px;
+  background: #ed2b33;
+  color: #fff;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 13px;
+  height: 28px;
+  min-width: 60px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.mdm-btn-primary:hover {
+  opacity: 0.9;
+  background: #c81e2c;
+}
+
+.mdm-btn-secondary {
+  padding: 0 18px;
+  background: #383f4e;
+  color: #fff;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 13px;
+  height: 28px;
+  min-width: 80px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.mdm-btn-secondary:hover {
+  opacity: 0.9;
+}
+
+/* ==================== 空数据提示 ==================== */
+.mdm-empty-data {
+  text-align: center;
+  color: #94a3b8;
+  padding: 40px;
+}

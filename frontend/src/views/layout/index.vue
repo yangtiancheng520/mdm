@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { useUserStore } from '../../store/user'
 import { useTabsStore } from '../../store/tabs'
+import MdmConfirmDialog from '../../components/MdmConfirmDialog.vue'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const tabsStore = useTabsStore()
+
+// 确认对话框
+const confirmVisible = ref(false)
 
 // 菜单列表
 const menuList = computed(() => {
@@ -53,14 +57,15 @@ function handleTabRemove(path: string) {
 
 // 退出登录
 function handleLogout() {
-  ElMessageBox.confirm('确定要退出登录吗？', '提示', {
-    type: 'warning'
-  }).then(() => {
-    tabsStore.clearTabs()
-    userStore.logout()
-    ElMessage.success('退出成功')
-    router.push('/login')
-  }).catch(() => {})
+  confirmVisible.value = true
+}
+
+// 确认退出
+function handleConfirmLogout() {
+  tabsStore.clearTabs()
+  userStore.logout()
+  ElMessage.success('退出成功')
+  router.push('/login')
 }
 
 // 初始化
@@ -197,6 +202,13 @@ onMounted(() => {
       </main>
     </div>
   </div>
+
+  <!-- 确认退出对话框 -->
+  <MdmConfirmDialog
+    v-model="confirmVisible"
+    message="确定要退出登录吗？"
+    @confirm="handleConfirmLogout"
+  />
 </template>
 
 <style scoped>
@@ -382,7 +394,7 @@ onMounted(() => {
   border-radius: 10px;
   margin: 2px 0;
   font-weight: 500;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .menu-item:hover {
@@ -403,17 +415,17 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
+  min-width: 19px;
   color: #fff;
 }
 
 .menu-icon svg {
-  width: 18px;
-  height: 18px;
+  width: 19px;
+  height: 19px;
 }
 
 .menu-title {
-  font-size: 12px;
+  font-size: 13px;
   white-space: nowrap;
 }
 
@@ -455,10 +467,10 @@ onMounted(() => {
 .tab-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   padding: 0 12px;
   height: 28px;
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 12px;
   font-weight: 500;
   color: #5b6e8c;
@@ -479,7 +491,7 @@ onMounted(() => {
 }
 
 .tab-close {
-  margin-left: 4px;
+  margin-left: 0;
   font-size: 14px;
   cursor: pointer;
   opacity: 0.6;
@@ -494,9 +506,9 @@ onMounted(() => {
 /* 页面内容 */
 .page-content {
   flex: 1;
-  padding: 20px;
+  padding: 8px;
   overflow-y: auto;
-  background: #F5F7FA;
+  background: #becee7;
 }
 
 /* 过渡动画 */

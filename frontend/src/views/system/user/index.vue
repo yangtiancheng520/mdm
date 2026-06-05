@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { getUserList, createUser, updateUser, deleteUser, batchDeleteUsers, type User, type UserForm } from '../../../api/user'
 import { getAllRoles, type Role } from '../../../api/role'
+import MdmDialog from '../../../components/MdmDialog.vue'
+import MdmConfirmDialog from '../../../components/MdmConfirmDialog.vue'
 
 const tableData = ref<User[]>([])
 const loading = ref(false)
@@ -18,7 +20,11 @@ const searchForm = ref({
 // 弹窗
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增用户')
-const formRef = ref()
+
+// 确认对话框
+const confirmVisible = ref(false)
+const confirmMessage = ref('')
+const confirmAction = ref<(() => void) | null>(null)
 
 // 表单数据
 const form = ref<UserForm>({
@@ -33,12 +39,18 @@ const form = ref<UserForm>({
 
 const roleList = ref<Role[]>([])
 
+// 分页
+const currentPage = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
+
 // 获取用户列表
 async function fetchData() {
   loading.value = true
   try {
     const res = await getUserList(searchForm.value)
     tableData.value = res.data.list
+    total.value = res.data.total || res.data.list.length
   } catch (error) {
     console.error(error)
   } finally {
@@ -58,12 +70,14 @@ async function fetchRoles() {
 
 // 搜索
 function handleSearch() {
+  currentPage.value = 1
   fetchData()
 }
 
 // 重置
 function handleReset() {
   searchForm.value = { account: '', name: '', status: '' }
+  currentPage.value = 1
   fetchData()
 }
 
@@ -100,13 +114,13 @@ function handleEdit(row: User) {
 
 // 删除
 function handleDelete(row: User) {
-  ElMessageBox.confirm(`确定要删除用户「${row.name}」吗？`, '提示', {
-    type: 'warning'
-  }).then(async () => {
+  confirmMessage.value = `确定要删除用户「${row.name}」吗？`
+  confirmAction.value = async () => {
     await deleteUser(row.id)
     ElMessage.success('删除成功')
     fetchData()
-  }).catch(() => {})
+  }
+  confirmVisible.value = true
 }
 
 // 批量删除
@@ -115,13 +129,20 @@ function handleBatchDelete() {
     ElMessage.warning('请选择要删除的用户')
     return
   }
-  ElMessageBox.confirm(`确定要删除选中的 ${selectedRows.value.length} 个用户吗？`, '提示', {
-    type: 'warning'
-  }).then(async () => {
+  confirmMessage.value = `确定要删除选中的 ${selectedRows.value.length} 个用户吗？`
+  confirmAction.value = async () => {
     await batchDeleteUsers(selectedRows.value.map(r => r.id))
     ElMessage.success('删除成功')
     fetchData()
-  }).catch(() => {})
+  }
+  confirmVisible.value = true
+}
+
+// 确认删除
+function handleConfirmDelete() {
+  if (confirmAction.value) {
+    confirmAction.value()
+  }
 }
 
 // 选择变化
@@ -133,7 +154,6 @@ function handleSelectionChange(rows: User[]) {
 async function handleSubmit() {
   try {
     if (form.value.id) {
-      // 编辑时：如果密码为空则不发送密码字段（保留原密码）
       const updateData = { ...form.value }
       if (!updateData.password) {
         delete updateData.password
@@ -151,6 +171,18 @@ async function handleSubmit() {
   }
 }
 
+// 分页
+function handlePageChange(page: number) {
+  currentPage.value = page
+  fetchData()
+}
+
+function handleSizeChange(size: number) {
+  pageSize.value = size
+  currentPage.value = 1
+  fetchData()
+}
+
 onMounted(() => {
   fetchData()
   fetchRoles()
@@ -158,115 +190,150 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="user-container">
-    <!-- 搜索栏 -->
-    <el-card class="search-card">
-      <el-form :inline="true" :model="searchForm">
-        <el-form-item label="账号">
-          <el-input v-model="searchForm.account" placeholder="请输入账号" clearable />
-        </el-form-item>
-        <el-form-item label="姓名">
-          <el-input v-model="searchForm.name" placeholder="请输入姓名" clearable />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="searchForm.status" placeholder="请选择" clearable style="width: 100px">
-            <el-option label="启用" value="active" />
-            <el-option label="禁用" value="inactive" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSearch">搜索</el-button>
-          <el-button @click="handleReset">重置</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
-
-    <!-- 表格 -->
-    <el-card>
-      <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span>用户列表</span>
-          <div>
-            <el-button type="danger" :disabled="selectedRows.length === 0" @click="handleBatchDelete">
-              批量删除
-            </el-button>
-            <el-button type="primary" @click="handleAdd">新增用户</el-button>
-          </div>
+  <div class="mdm-container">
+    <!-- 顶部操作栏 -->
+    <div class="mdm-top-bar">
+      <div class="mdm-filter-row">
+        <div class="mdm-filter-item">
+          <input v-model="searchForm.account" type="text" placeholder="账号" @keyup.enter="handleSearch" />
         </div>
-      </template>
+        <div class="mdm-filter-item">
+          <input v-model="searchForm.name" type="text" placeholder="姓名" @keyup.enter="handleSearch" />
+        </div>
+        <div class="mdm-filter-item">
+          <select v-model="searchForm.status" @change="handleSearch">
+            <option value="">全部状态</option>
+            <option value="active">启用</option>
+            <option value="inactive">禁用</option>
+          </select>
+        </div>
+      </div>
+      <div class="mdm-right-group">
+        <button class="mdm-btn-red" @click="handleAdd">+ 新增</button>
+        <button class="mdm-btn-outline" :disabled="selectedRows.length === 0" @click="handleBatchDelete">删除</button>
+        <button class="mdm-btn-outline" @click="handleSearch">查询</button>
+      </div>
+    </div>
 
-      <el-table
-        v-loading="loading"
-        :data="tableData"
-        border
-        @selection-change="handleSelectionChange"
-      >
-        <el-table-column type="selection" width="50" />
-        <el-table-column prop="account" label="账号" width="120" />
-        <el-table-column prop="name" label="姓名" width="120" />
-        <el-table-column prop="email" label="邮箱" />
-        <el-table-column prop="phone" label="手机号" width="130" />
-        <el-table-column label="状态" width="80">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 'active' ? 'success' : 'danger'">
-              {{ row.status === 'active' ? '启用' : '禁用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createdAt" label="创建时间" width="180" />
-        <el-table-column label="操作" width="150" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+    <!-- 数据表格 -->
+    <div class="mdm-table-wrapper">
+      <table class="mdm-data-table">
+        <thead>
+          <tr>
+            <th style="width: 40px">
+              <input type="checkbox" />
+            </th>
+            <th>账号</th>
+            <th>姓名</th>
+            <th>邮箱</th>
+            <th>手机号</th>
+            <th>状态</th>
+            <th>创建时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody v-loading="loading">
+          <tr v-for="row in tableData" :key="row.id">
+            <td>
+              <input type="checkbox" :checked="selectedRows.includes(row)" @change="(e) => e.target.checked ? selectedRows.push(row) : selectedRows.splice(selectedRows.indexOf(row), 1)" />
+            </td>
+            <td>{{ row.account }}</td>
+            <td>{{ row.name }}</td>
+            <td>{{ row.email }}</td>
+            <td>{{ row.phone }}</td>
+            <td>
+              <div class="mdm-status-badge">
+                <span :class="row.status === 'active' ? 'mdm-green-dot' : 'mdm-red-dot'"></span>
+                {{ row.status === 'active' ? '启用' : '禁用' }}
+              </div>
+            </td>
+            <td>{{ row.createdAt }}</td>
+            <td>
+              <div class="mdm-action-buttons">
+                <button class="mdm-action-btn" @click="handleEdit(row)">编辑</button>
+                <button class="mdm-action-btn delete" @click="handleDelete(row)">删除</button>
+              </div>
+            </td>
+          </tr>
+          <tr v-if="tableData.length === 0 && !loading">
+            <td colspan="8" class="mdm-empty-data">暂无数据</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 分页 -->
+    <div class="mdm-pagination">
+      <span class="mdm-pagination-total">共 {{ total }} 条</span>
+      <button class="mdm-page-btn" @click="handlePageChange(1)">◀◀</button>
+      <button class="mdm-page-btn" @click="handlePageChange(currentPage - 1)">‹</button>
+      <button class="mdm-page-btn active">{{ currentPage }}</button>
+      <button class="mdm-page-btn" @click="handlePageChange(currentPage + 1)">›</button>
+      <button class="mdm-page-btn" @click="handlePageChange(Math.ceil(total / pageSize))">▶▶</button>
+      <select class="mdm-page-select" v-model="pageSize" @change="handleSizeChange(pageSize)">
+        <option :value="10">10条/页</option>
+        <option :value="20">20条/页</option>
+        <option :value="50">50条/页</option>
+      </select>
+    </div>
 
     <!-- 新增/编辑弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px">
-      <el-form ref="formRef" :model="form" label-width="80px">
-        <el-form-item label="账号" required>
-          <el-input v-model="form.account" :disabled="!!form.id" placeholder="请输入账号" />
-        </el-form-item>
-        <el-form-item label="密码" :required="!form.id">
-          <el-input v-model="form.password" type="password" :placeholder="form.id ? '留空则不修改密码' : '请输入密码'" show-password />
-        </el-form-item>
-        <el-form-item label="姓名" required>
-          <el-input v-model="form.name" placeholder="请输入姓名" />
-        </el-form-item>
-        <el-form-item label="邮箱" required>
-          <el-input v-model="form.email" placeholder="请输入邮箱" />
-        </el-form-item>
-        <el-form-item label="手机号" required>
-          <el-input v-model="form.phone" placeholder="请输入手机号" />
-        </el-form-item>
-        <el-form-item label="角色">
-          <el-select v-model="form.roles" multiple placeholder="请选择角色" style="width: 100%;">
-            <el-option v-for="role in roleList" :key="role.id" :label="role.name" :value="role.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-radio-group v-model="form.status">
-            <el-radio value="active">启用</el-radio>
-            <el-radio value="inactive">禁用</el-radio>
-          </el-radio-group>
-        </el-form-item>
-      </el-form>
+    <MdmDialog v-model="dialogVisible" :title="dialogTitle" width="550px">
+      <div class="mdm-form-row">
+        <div class="mdm-form-label required"><em>*</em>账号</div>
+        <input v-model="form.account" class="mdm-input-yellow" :disabled="!!form.id" placeholder="请输入账号" />
+      </div>
+      <div class="mdm-form-row">
+        <div class="mdm-form-label required"><em>*</em>密码</div>
+        <input v-model="form.password" class="mdm-input-yellow" type="password" :placeholder="form.id ? '留空则不修改密码' : '请输入密码'" />
+      </div>
+      <div class="mdm-form-row">
+        <div class="mdm-form-label required"><em>*</em>姓名</div>
+        <input v-model="form.name" class="mdm-input-yellow" placeholder="请输入姓名" />
+      </div>
+      <div class="mdm-form-row">
+        <div class="mdm-form-label required"><em>*</em>邮箱</div>
+        <input v-model="form.email" class="mdm-input-yellow" placeholder="请输入邮箱" />
+      </div>
+      <div class="mdm-form-row">
+        <div class="mdm-form-label required"><em>*</em>手机号</div>
+        <input v-model="form.phone" class="mdm-input-yellow" placeholder="请输入手机号" />
+      </div>
+      <div class="mdm-form-row">
+        <div class="mdm-form-label">角色</div>
+        <select v-model="form.roles" multiple class="mdm-select" style="height: auto; min-height: 36px;">
+          <option v-for="role in roleList" :key="role.id" :value="role.id">{{ role.name }}</option>
+        </select>
+      </div>
+      <div class="mdm-form-row">
+        <div class="mdm-form-label required"><em>*</em>状态</div>
+        <div class="mdm-radio-group">
+          <label class="mdm-radio-item">
+            <input type="radio" v-model="form.status" value="active" />
+            启用
+          </label>
+          <label class="mdm-radio-item">
+            <input type="radio" v-model="form.status" value="inactive" />
+            禁用
+          </label>
+        </div>
+      </div>
+
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">确定</el-button>
+        <button class="mdm-btn-cancel" @click="dialogVisible = false">取消</button>
+        <button class="mdm-btn-primary" @click="handleSubmit">确定</button>
       </template>
-    </el-dialog>
+    </MdmDialog>
+
+    <!-- 确认对话框 -->
+    <MdmConfirmDialog
+      v-model="confirmVisible"
+      :message="confirmMessage"
+      @confirm="handleConfirmDelete"
+    />
   </div>
 </template>
 
 <style scoped>
-.user-container {
-  height: 100%;
-}
-
-.search-card {
-  margin-bottom: 20px;
-}
+@import '../../../assets/styles/mdm-common.scss';
 </style>
