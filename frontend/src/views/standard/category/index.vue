@@ -1,35 +1,35 @@
 <script setup lang="ts">
 /**
- * 组织管理页面 - 使用 Element Plus Tree 组件
+ * 字段分类管理页面 - 使用 Element Plus Tree 组件
  */
 
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElIcon } from 'element-plus'
 import { Plus, Edit, Delete, Search } from '@element-plus/icons-vue'
 import {
-  getOrganizationTree,
-  createOrganization,
-  updateOrganization,
-  deleteOrganization,
-  type Organization,
-  type OrganizationForm,
-  ORG_TYPE_OPTIONS
-} from '../../../api/system/organization'
+  getCategoryTree,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  getFieldCountByCategory,
+  type FieldCategory,
+  type FieldCategoryForm
+} from '../../../api/standard/fieldCategory'
 import MdmDialog from '../../../components/MdmDialog.vue'
 import MdmConfirmDialog from '../../../components/MdmConfirmDialog.vue'
 
 // 树形数据
-const treeData = ref<Organization[]>([])
+const treeData = ref<FieldCategory[]>([])
 const loading = ref(false)
 const filterText = ref('')
-const treeRef = ref() // 添加树引用
+const treeRef = ref()
 
 // 当前选中的节点
-const currentNode = ref<Organization | null>(null)
+const currentNode = ref<FieldCategory | null>(null)
 
 // 弹窗
 const dialogVisible = ref(false)
-const dialogTitle = ref('新增组织')
+const dialogTitle = ref('新增分类')
 
 // 确认对话框
 const confirmVisible = ref(false)
@@ -37,24 +37,20 @@ const confirmMessage = ref('')
 const confirmAction = ref<(() => void) | null>(null)
 
 // 表单数据
-const form = ref<OrganizationForm>({
-  orgCode: '',
-  orgName: '',
-  orgType: 'department',
+const form = ref<FieldCategoryForm>({
+  categoryCode: '',
+  categoryName: '',
   parentId: null,
-  manager: '',
-  phone: '',
-  email: '',
   sort: 0,
   status: 'active',
   description: ''
 })
 
-// 获取组织树
+// 获取分类树
 async function fetchTree() {
   loading.value = true
   try {
-    const res = await getOrganizationTree()
+    const res = await getCategoryTree()
     treeData.value = res.data || []
   } catch (error) {
     console.error(error)
@@ -64,9 +60,9 @@ async function fetchTree() {
 }
 
 // 过滤节点
-function filterNode(value: string, data: Organization): boolean {
+function filterNode(value: string, data: FieldCategory): boolean {
   if (!value) return true
-  return data.orgName.includes(value) || data.orgCode.includes(value)
+  return data.categoryName.includes(value) || data.categoryCode.includes(value)
 }
 
 // 搜索
@@ -75,16 +71,12 @@ function handleSearch() {
 }
 
 // 新增
-function handleAdd(parent?: Organization) {
-  dialogTitle.value = '新增组织'
+function handleAdd(parent?: FieldCategory) {
+  dialogTitle.value = '新增分类'
   form.value = {
-    orgCode: '',
-    orgName: '',
-    orgType: 'department',
+    categoryCode: '',
+    categoryName: '',
     parentId: parent?.id || null,
-    manager: '',
-    phone: '',
-    email: '',
     sort: 0,
     status: 'active',
     description: ''
@@ -94,18 +86,14 @@ function handleAdd(parent?: Organization) {
 }
 
 // 编辑
-function handleEdit(row: Organization) {
-  dialogTitle.value = '编辑组织'
+function handleEdit(row: FieldCategory) {
+  dialogTitle.value = '编辑分类'
   currentNode.value = row
   form.value = {
     id: row.id,
-    orgCode: row.orgCode,
-    orgName: row.orgName,
-    orgType: row.orgType,
+    categoryCode: row.categoryCode,
+    categoryName: row.categoryName,
     parentId: row.parentId,
-    manager: row.manager,
-    phone: row.phone,
-    email: row.email,
     sort: row.sort,
     status: row.status,
     description: row.description
@@ -114,17 +102,30 @@ function handleEdit(row: Organization) {
 }
 
 // 删除
-function handleDelete(row: Organization) {
+async function handleDelete(row: FieldCategory) {
   // 检查是否有子节点
   if (row.children && row.children.length > 0) {
-    ElMessage.warning('该组织下存在子组织，无法删除')
+    ElMessage.warning('该分类下存在子分类，无法删除')
     return
   }
 
-  confirmMessage.value = `确定要删除组织「${row.orgName}」吗？`
+  // 检查是否有关联字段
+  try {
+    const res = await getFieldCountByCategory(row.id)
+    const fieldCount = res.data || 0
+    if (fieldCount > 0) {
+      ElMessage.warning(`该分类下有 ${fieldCount} 个字段，请先迁移字段`)
+      return
+    }
+  } catch (error) {
+    console.error('获取字段数量失败', error)
+  }
+
+  confirmMessage.value = `确定要删除分类「${row.categoryName}」吗？`
   confirmAction.value = async () => {
     try {
-      await deleteOrganization(row.id)
+      console.log('删除分类ID:', row.id, '类型:', typeof row.id)
+      await deleteCategory(row.id)
       ElMessage.success('删除成功')
       fetchTree()
     } catch (error: any) {
@@ -144,21 +145,21 @@ function handleConfirmDelete() {
 // 提交表单
 async function handleSubmit() {
   // 表单验证
-  if (!form.value.orgCode) {
-    ElMessage.warning('请输入组织编码')
+  if (!form.value.categoryCode) {
+    ElMessage.warning('请输入分类编码')
     return
   }
-  if (!form.value.orgName) {
-    ElMessage.warning('请输入组织名称')
+  if (!form.value.categoryName) {
+    ElMessage.warning('请输入分类名称')
     return
   }
 
   try {
     if (form.value.id) {
-      await updateOrganization(form.value.id, form.value)
+      await updateCategory(form.value.id, form.value)
       ElMessage.success('更新成功')
     } else {
-      await createOrganization(form.value)
+      await createCategory(form.value)
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false
@@ -166,12 +167,6 @@ async function handleSubmit() {
   } catch (error: any) {
     ElMessage.error(error.response?.data?.message || '操作失败')
   }
-}
-
-// 获取组织类型标签
-function getOrgTypeLabel(type: string): string {
-  const option = ORG_TYPE_OPTIONS.find(o => o.value === type)
-  return option?.label || type
 }
 
 // 状态标签
@@ -185,20 +180,20 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="organization-page">
+  <div class="category-page">
     <!-- 页面标题 -->
     <div class="page-header">
-      <h2 class="page-title">组织管理</h2>
-      <button class="mdm-btn-red" @click="handleAdd()">+ 新增顶级组织</button>
+      <h2 class="page-title">字段分类管理</h2>
+      <button class="mdm-btn-red" @click="handleAdd()">+ 新增顶级分类</button>
     </div>
 
-    <!-- 组织树 -->
-    <div class="org-tree-container">
+    <!-- 分类树 -->
+    <div class="category-tree-container">
       <!-- 搜索框 -->
       <div class="search-wrapper">
         <el-input
           v-model="filterText"
-          placeholder="搜索组织名称/编码"
+          placeholder="搜索分类名称/编码"
           :prefix-icon="Search"
           clearable
           @input="handleSearch"
@@ -207,15 +202,15 @@ onMounted(() => {
 
       <!-- 树形结构 -->
       <div v-loading="loading" class="tree-content">
-        <el-empty v-if="treeData.length === 0" description="暂无组织数据">
-          <el-button type="primary" @click="handleAdd()">新增组织</el-button>
+        <el-empty v-if="treeData.length === 0" description="暂无分类数据">
+          <el-button type="primary" @click="handleAdd()">新增分类</el-button>
         </el-empty>
 
         <el-tree
           ref="treeRef"
           :data="treeData"
           :props="{
-            label: 'orgName',
+            label: 'categoryName',
             children: 'children'
           }"
           :node-key="'id'"
@@ -227,9 +222,8 @@ onMounted(() => {
           <template #default="{ node, data }">
             <div class="tree-node">
               <div class="node-info">
-                <span class="node-name">{{ data.orgName }}</span>
-                <span class="node-code">({{ data.orgCode }})</span>
-                <el-tag size="small" type="info">{{ getOrgTypeLabel(data.orgType) }}</el-tag>
+                <span class="node-name">{{ data.categoryName }}</span>
+                <span class="node-code">({{ data.categoryCode }})</span>
                 <span
                   class="custom-tag"
                   :class="data.status === 'active' ? 'status-active' : 'status-inactive'"
@@ -260,32 +254,12 @@ onMounted(() => {
     <!-- 新增/编辑弹窗 -->
     <MdmDialog v-model="dialogVisible" :title="dialogTitle" width="550px">
       <div class="mdm-form-row">
-        <div class="mdm-form-label required"><em>*</em>组织编码</div>
-        <input v-model="form.orgCode" class="mdm-input-yellow" placeholder="请输入组织编码" />
+        <div class="mdm-form-label required"><em>*</em>分类编码</div>
+        <input v-model="form.categoryCode" class="mdm-input-yellow" placeholder="请输入分类编码" />
       </div>
       <div class="mdm-form-row">
-        <div class="mdm-form-label required"><em>*</em>组织名称</div>
-        <input v-model="form.orgName" class="mdm-input-yellow" placeholder="请输入组织名称" />
-      </div>
-      <div class="mdm-form-row">
-        <div class="mdm-form-label required"><em>*</em>组织类型</div>
-        <select v-model="form.orgType" class="mdm-select">
-          <option v-for="opt in ORG_TYPE_OPTIONS" :key="opt.value" :value="opt.value">
-            {{ opt.label }}
-          </option>
-        </select>
-      </div>
-      <div class="mdm-form-row">
-        <div class="mdm-form-label">负责人</div>
-        <input v-model="form.manager" class="mdm-input-normal" placeholder="请输入负责人" />
-      </div>
-      <div class="mdm-form-row">
-        <div class="mdm-form-label">联系电话</div>
-        <input v-model="form.phone" class="mdm-input-normal" placeholder="请输入联系电话" />
-      </div>
-      <div class="mdm-form-row">
-        <div class="mdm-form-label">邮箱</div>
-        <input v-model="form.email" class="mdm-input-normal" placeholder="请输入邮箱" />
+        <div class="mdm-form-label required"><em>*</em>分类名称</div>
+        <input v-model="form.categoryName" class="mdm-input-yellow" placeholder="请输入分类名称" />
       </div>
       <div class="mdm-form-row">
         <div class="mdm-form-label">排序</div>
@@ -327,7 +301,7 @@ onMounted(() => {
 <style scoped lang="scss">
 @import '../../../assets/styles/mdm-common.scss';
 
-.organization-page {
+.category-page {
   padding: 20px;
   background: #f5f5f5;
   min-height: calc(100vh - 60px);
@@ -350,7 +324,7 @@ onMounted(() => {
   color: #333;
 }
 
-.org-tree-container {
+.category-tree-container {
   background: #fff;
   border-radius: 4px;
   padding: 20px;

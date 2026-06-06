@@ -46,6 +46,12 @@ const routes = [
       },
       // 数据标准与模型中心
       {
+        path: 'standard/category',
+        name: 'StandardCategory',
+        component: () => import('../views/standard/category/index.vue'),
+        meta: { title: '字段分类管理' }
+      },
+      {
         path: 'standard/field',
         name: 'StandardField',
         component: () => import('../views/standard/field/index.vue'),

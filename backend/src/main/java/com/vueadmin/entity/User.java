@@ -28,6 +28,9 @@ public class User {
     @Column(length = 20)
     private String phone;
 
+    @Column(name = "org_id")
+    private Long orgId;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 10)
     private Status status = Status.active;

@@ -11,6 +11,8 @@ public class UserDto {
     private String name;
     private String email;
     private String phone;
+    private Long orgId;
+    private String orgName;
     private String status;
     private List<Long> roles;
     private String createdAt;

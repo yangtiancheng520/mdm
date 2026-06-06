@@ -17,6 +17,11 @@ public class ScheduleTaskDto {
 
     private String taskType;
 
+    /**
+     * 任务类型名称
+     */
+    private String taskTypeName;
+
     private String taskParams;
 
     private String cronExpression;

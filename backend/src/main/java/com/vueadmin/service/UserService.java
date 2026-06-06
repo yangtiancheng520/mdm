@@ -4,6 +4,7 @@ import com.vueadmin.dto.*;
 import com.vueadmin.entity.*;
 import com.vueadmin.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,6 +12,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -20,6 +22,7 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final RolePermissionRepository rolePermissionRepository;
     private final PermissionRepository permissionRepository;
+    private final OrganizationRepository organizationRepository;
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -50,9 +53,16 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
-    public PageResult<UserDto> getUserList(String account, String name, String status) {
+    public PageResult<UserDto> getUserList(String account, String name, String status, Long orgId) {
         User.Status statusEnum = status != null && !status.isEmpty() ? User.Status.valueOf(status) : null;
-        List<User> users = userRepository.searchUsers(account, name, statusEnum);
+
+        // orgId 为 0 或 null 时，查询所有用户
+        Long effectiveOrgId = (orgId != null && orgId > 0) ? orgId : null;
+
+        log.info("查询用户列表: account={}, name={}, status={}, orgId={}, effectiveOrgId={}",
+            account, name, status, orgId, effectiveOrgId);
+
+        List<User> users = userRepository.searchUsers(account, name, statusEnum, effectiveOrgId);
 
         List<UserDto> list = users.stream().map(user -> {
             UserDto dto = new UserDto();
@@ -61,6 +71,14 @@ public class UserService {
             dto.setName(user.getName());
             dto.setEmail(user.getEmail());
             dto.setPhone(user.getPhone());
+            dto.setOrgId(user.getOrgId());
+
+            // 获取组织名称
+            if (user.getOrgId() != null) {
+                organizationRepository.findById(user.getOrgId())
+                    .ifPresent(org -> dto.setOrgName(org.getOrgName()));
+            }
+
             dto.setStatus(user.getStatus().name());
             dto.setRoles(userRoleRepository.findRoleIdsByUserId(user.getId()));
             dto.setCreatedAt(user.getCreatedAt() != null ? user.getCreatedAt().format(formatter) : null);
@@ -72,15 +90,19 @@ public class UserService {
 
     @Transactional
     public User createUser(UserDto userDto) {
+        log.info("创建用户: account={}, name={}, orgId={}", userDto.getAccount(), userDto.getName(), userDto.getOrgId());
+
         User user = new User();
         user.setAccount(userDto.getAccount());
         user.setPassword(userDto.getPassword());
         user.setName(userDto.getName());
         user.setEmail(userDto.getEmail());
         user.setPhone(userDto.getPhone());
+        user.setOrgId(userDto.getOrgId());
         user.setStatus(userDto.getStatus() != null ? User.Status.valueOf(userDto.getStatus()) : User.Status.active);
 
         User saved = userRepository.save(user);
+        log.info("用户创建成功: id={}", saved.getId());
 
         if (userDto.getRoles() != null && !userDto.getRoles().isEmpty()) {
             for (Long roleId : userDto.getRoles()) {
@@ -99,6 +121,10 @@ public class UserService {
         User user = userRepository.findById(id).orElse(null);
         if (user == null) return;
 
+        log.info("更新用户 ID: {}, 接收到的数据: account={}, name={}, orgId={}, email={}, phone={}, status={}",
+            id, userDto.getAccount(), userDto.getName(), userDto.getOrgId(),
+            userDto.getEmail(), userDto.getPhone(), userDto.getStatus());
+
         if (userDto.getPassword() != null && !userDto.getPassword().isEmpty()) {
             user.setPassword(userDto.getPassword());
         }
@@ -111,11 +137,15 @@ public class UserService {
         if (userDto.getPhone() != null) {
             user.setPhone(userDto.getPhone());
         }
+        // orgId 可以为 null，表示清空组织
+        user.setOrgId(userDto.getOrgId());
         if (userDto.getStatus() != null) {
             user.setStatus(User.Status.valueOf(userDto.getStatus()));
         }
 
+        log.info("保存用户前: orgId={}", user.getOrgId());
         userRepository.save(user);
+        log.info("用户保存成功");
 
         if (userDto.getRoles() != null) {
             userRoleRepository.deleteByUserId(id);

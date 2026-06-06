@@ -7,6 +7,8 @@ export interface User {
   email: string
   phone: string
   avatar: string
+  orgId?: number
+  orgName?: string
   status: 'active' | 'inactive'
   roles: number[]
   createdAt: string
@@ -19,12 +21,13 @@ export interface UserForm {
   name: string
   email: string
   phone: string
+  orgId?: number | null
   status: 'active' | 'inactive'
   roles: number[]
 }
 
 // 获取用户列表
-export function getUserList(params?: { account?: string; name?: string; status?: string }) {
+export function getUserList(params?: { account?: string; name?: string; status?: string; orgId?: number }) {
   return api.get('/user/list', { params })
 }
 

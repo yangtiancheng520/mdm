@@ -19,8 +19,9 @@ public class UserController {
     public ApiResponse<PageResult<UserDto>> list(
             @RequestParam(required = false) String account,
             @RequestParam(required = false) String name,
-            @RequestParam(required = false) String status) {
-        return ApiResponse.success(userService.getUserList(account, name, status));
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long orgId) {
+        return ApiResponse.success(userService.getUserList(account, name, status, orgId));
     }
 
     @PostMapping("/create")

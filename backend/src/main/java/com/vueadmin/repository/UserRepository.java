@@ -16,8 +16,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT u FROM User u WHERE " +
            "(:account IS NULL OR u.account LIKE CONCAT('%', :account, '%')) AND " +
            "(:name IS NULL OR u.name LIKE CONCAT('%', :name, '%')) AND " +
-           "(:status IS NULL OR u.status = :status)")
+           "(:status IS NULL OR u.status = :status) AND " +
+           "(:orgId IS NULL OR u.orgId = :orgId)")
     List<User> searchUsers(@Param("account") String account,
                            @Param("name") String name,
-                           @Param("status") User.Status status);
+                           @Param("status") User.Status status,
+                           @Param("orgId") Long orgId);
 }
