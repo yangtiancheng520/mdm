@@ -5,6 +5,10 @@ spring:
   application:
     name: mdm-backend
 
+  # 允许循环依赖（临时解决方案）
+  main:
+    allow-circular-references: true
+
   # 数据源配置
   datasource:
     url: jdbc:mysql://localhost:3306/mdm?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8&allowPublicKeyRetrieval=true

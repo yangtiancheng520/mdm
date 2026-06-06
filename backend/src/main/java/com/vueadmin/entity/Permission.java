@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "permissions")
+@Table(name = "bas_permission")
 public class Permission {
 
     @Id

@@ -1,0 +1,268 @@
+-- =============================================
+-- MDM 数据库全部表注释修复脚本
+-- =============================================
+
+USE mdm;
+
+-- 修复 md_ 开头的表
+ALTER TABLE md_field_standard COMMENT '字段标准库表';
+ALTER TABLE md_data_standard COMMENT '数据标准视图表';
+ALTER TABLE md_encoding_rule COMMENT '编码规则表';
+ALTER TABLE md_value_domain COMMENT '值域表';
+ALTER TABLE md_form COMMENT '表单管理表';
+ALTER TABLE md_form_field COMMENT '表单字段配置表';
+ALTER TABLE md_workflow_definition COMMENT '流程定义表';
+ALTER TABLE md_workflow_instance COMMENT '流程实例表';
+ALTER TABLE md_task COMMENT '任务表';
+ALTER TABLE md_master_data_type COMMENT '主数据类型表';
+ALTER TABLE md_master_data_instance COMMENT '主数据实例表';
+ALTER TABLE md_lifecycle_state COMMENT '生命周期状态表';
+ALTER TABLE md_version_snapshot COMMENT '版本快照表';
+ALTER TABLE md_audit_log COMMENT '审计日志表';
+
+-- 修复 md_field_standard 字段注释
+ALTER TABLE md_field_standard
+  MODIFY COLUMN field_code VARCHAR(100) NOT NULL COMMENT '字段编码',
+  MODIFY COLUMN field_name VARCHAR(100) NOT NULL COMMENT '字段名称',
+  MODIFY COLUMN field_type VARCHAR(50) NOT NULL COMMENT '字段类型: string/number/date/datetime/boolean/text/select/multi_select',
+  MODIFY COLUMN length INT COMMENT '字段长度',
+  MODIFY COLUMN precision_val INT COMMENT '精度',
+  MODIFY COLUMN default_value VARCHAR(500) COMMENT '默认值',
+  MODIFY COLUMN is_required TINYINT DEFAULT 0 COMMENT '是否必填: 0-否 1-是',
+  MODIFY COLUMN validation_rule TEXT COMMENT '校验规则JSON',
+  MODIFY COLUMN reference_id BIGINT COMMENT '引用中台字段ID',
+  MODIFY COLUMN reference_source VARCHAR(50) COMMENT '引用来源: data_platform/manual',
+  MODIFY COLUMN category VARCHAR(50) COMMENT '字段分类',
+  MODIFY COLUMN status VARCHAR(20) DEFAULT 'draft' COMMENT '状态: draft-草稿/published-已发布/archived-已归档',
+  MODIFY COLUMN version INT DEFAULT 1 COMMENT '版本号',
+  MODIFY COLUMN created_by VARCHAR(50) COMMENT '创建人',
+  MODIFY COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  MODIFY COLUMN updated_by VARCHAR(50) COMMENT '更新人',
+  MODIFY COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  MODIFY COLUMN description TEXT COMMENT '描述';
+
+-- 修复 md_data_standard 字段注释
+ALTER TABLE md_data_standard
+  MODIFY COLUMN standard_code VARCHAR(100) NOT NULL COMMENT '标准编码',
+  MODIFY COLUMN standard_name VARCHAR(200) NOT NULL COMMENT '标准名称',
+  MODIFY COLUMN standard_type VARCHAR(50) COMMENT '标准类型: master_data/reference_data/business_data',
+  MODIFY COLUMN category_id BIGINT COMMENT '分类ID',
+  MODIFY COLUMN fields_definition TEXT COMMENT '字段定义JSON',
+  MODIFY COLUMN status VARCHAR(20) DEFAULT 'draft' COMMENT '状态: draft-草稿/published-已发布/archived-已归档',
+  MODIFY COLUMN version INT DEFAULT 1 COMMENT '版本号',
+  MODIFY COLUMN publish_time DATETIME COMMENT '发布时间',
+  MODIFY COLUMN approval_status VARCHAR(20) DEFAULT 'pending' COMMENT '审批状态: pending-待审/approved-通过/rejected-驳回',
+  MODIFY COLUMN approval_by VARCHAR(50) COMMENT '审批人',
+  MODIFY COLUMN approval_time DATETIME COMMENT '审批时间',
+  MODIFY COLUMN approval_comment TEXT COMMENT '审批意见',
+  MODIFY COLUMN created_by VARCHAR(50) COMMENT '创建人',
+  MODIFY COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  MODIFY COLUMN updated_by VARCHAR(50) COMMENT '更新人',
+  MODIFY COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  MODIFY COLUMN description TEXT COMMENT '描述';
+
+-- 修复 md_encoding_rule 字段注释
+ALTER TABLE md_encoding_rule
+  MODIFY COLUMN rule_code VARCHAR(100) NOT NULL COMMENT '规则编码',
+  MODIFY COLUMN rule_name VARCHAR(200) NOT NULL COMMENT '规则名称',
+  MODIFY COLUMN rule_definition TEXT COMMENT '规则定义JSON',
+  MODIFY COLUMN example VARCHAR(200) COMMENT '示例',
+  MODIFY COLUMN status VARCHAR(20) DEFAULT 'active' COMMENT '状态: active-启用/inactive-停用',
+  MODIFY COLUMN created_by VARCHAR(50) COMMENT '创建人',
+  MODIFY COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  MODIFY COLUMN updated_by VARCHAR(50) COMMENT '更新人',
+  MODIFY COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  MODIFY COLUMN description TEXT COMMENT '描述';
+
+-- 修复 md_value_domain 字段注释
+ALTER TABLE md_value_domain
+  MODIFY COLUMN domain_code VARCHAR(100) NOT NULL COMMENT '值域编码',
+  MODIFY COLUMN domain_name VARCHAR(200) NOT NULL COMMENT '值域名称',
+  MODIFY COLUMN domain_type VARCHAR(50) COMMENT '值域类型: enum-枚举/range-范围/reference-引用',
+  MODIFY COLUMN values_definition TEXT COMMENT '值定义JSON',
+  MODIFY COLUMN parent_id BIGINT COMMENT '父级ID',
+  MODIFY COLUMN status VARCHAR(20) DEFAULT 'active' COMMENT '状态: active-启用/inactive-停用',
+  MODIFY COLUMN created_by VARCHAR(50) COMMENT '创建人',
+  MODIFY COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  MODIFY COLUMN updated_by VARCHAR(50) COMMENT '更新人',
+  MODIFY COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  MODIFY COLUMN description TEXT COMMENT '描述';
+
+-- 修复 md_form 字段注释
+ALTER TABLE md_form
+  MODIFY COLUMN form_code VARCHAR(100) NOT NULL COMMENT '表单编码',
+  MODIFY COLUMN form_name VARCHAR(200) NOT NULL COMMENT '表单名称',
+  MODIFY COLUMN form_type VARCHAR(50) COMMENT '表单类型: create/edit/view/search',
+  MODIFY COLUMN master_data_type_id BIGINT COMMENT '关联主数据类型ID',
+  MODIFY COLUMN form_schema TEXT COMMENT '表单Schema JSON',
+  MODIFY COLUMN version INT DEFAULT 1 COMMENT '版本号',
+  MODIFY COLUMN status VARCHAR(20) DEFAULT 'draft' COMMENT '状态: draft-草稿/published-已发布',
+  MODIFY COLUMN is_default TINYINT DEFAULT 0 COMMENT '是否默认表单: 0-否 1-是',
+  MODIFY COLUMN created_by VARCHAR(50) COMMENT '创建人',
+  MODIFY COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  MODIFY COLUMN updated_by VARCHAR(50) COMMENT '更新人',
+  MODIFY COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  MODIFY COLUMN description TEXT COMMENT '描述';
+
+-- 修复 md_form_field 字段注释
+ALTER TABLE md_form_field
+  MODIFY COLUMN form_id BIGINT NOT NULL COMMENT '表单ID',
+  MODIFY COLUMN field_standard_id BIGINT COMMENT '关联字段标准ID',
+  MODIFY COLUMN field_name VARCHAR(100) NOT NULL COMMENT '字段名称',
+  MODIFY COLUMN field_label VARCHAR(200) COMMENT '字段标签',
+  MODIFY COLUMN field_type VARCHAR(50) COMMENT '字段类型',
+  MODIFY COLUMN field_config TEXT COMMENT '字段配置JSON',
+  MODIFY COLUMN display_order INT DEFAULT 0 COMMENT '显示顺序',
+  MODIFY COLUMN is_visible TINYINT DEFAULT 1 COMMENT '是否可见: 0-否 1-是',
+  MODIFY COLUMN is_editable TINYINT DEFAULT 1 COMMENT '是否可编辑: 0-否 1-是',
+  MODIFY COLUMN is_required TINYINT DEFAULT 0 COMMENT '是否必填: 0-否 1-是',
+  MODIFY COLUMN validation_rules TEXT COMMENT '校验规则JSON',
+  MODIFY COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  MODIFY COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间';
+
+-- 修复 md_workflow_definition 字段注释
+ALTER TABLE md_workflow_definition
+  MODIFY COLUMN workflow_code VARCHAR(100) NOT NULL COMMENT '流程编码',
+  MODIFY COLUMN workflow_name VARCHAR(200) NOT NULL COMMENT '流程名称',
+  MODIFY COLUMN workflow_type VARCHAR(50) COMMENT '流程类型: approval/change/review',
+  MODIFY COLUMN form_id BIGINT COMMENT '关联表单ID',
+  MODIFY COLUMN workflow_definition TEXT COMMENT '流程定义JSON',
+  MODIFY COLUMN integration_type VARCHAR(50) COMMENT '集成类型: internal/lbpm',
+  MODIFY COLUMN external_workflow_id VARCHAR(100) COMMENT '外部流程ID',
+  MODIFY COLUMN status VARCHAR(20) DEFAULT 'active' COMMENT '状态: active-启用/inactive-停用',
+  MODIFY COLUMN version INT DEFAULT 1 COMMENT '版本号',
+  MODIFY COLUMN created_by VARCHAR(50) COMMENT '创建人',
+  MODIFY COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  MODIFY COLUMN updated_by VARCHAR(50) COMMENT '更新人',
+  MODIFY COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  MODIFY COLUMN description TEXT COMMENT '描述';
+
+-- 修复 md_workflow_instance 字段注释
+ALTER TABLE md_workflow_instance
+  MODIFY COLUMN workflow_definition_id BIGINT NOT NULL COMMENT '流程定义ID',
+  MODIFY COLUMN business_key VARCHAR(200) COMMENT '业务键',
+  MODIFY COLUMN business_data_id BIGINT COMMENT '业务数据ID',
+  MODIFY COLUMN status VARCHAR(20) DEFAULT 'running' COMMENT '状态: running-运行中/completed-已完成/cancelled-已取消',
+  MODIFY COLUMN start_user VARCHAR(50) COMMENT '发起人',
+  MODIFY COLUMN start_time DATETIME COMMENT '发起时间',
+  MODIFY COLUMN end_time DATETIME COMMENT '结束时间',
+  MODIFY COLUMN current_node VARCHAR(200) COMMENT '当前节点',
+  MODIFY COLUMN variables TEXT COMMENT '流程变量JSON',
+  MODIFY COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间';
+
+-- 修复 md_task 字段注释
+ALTER TABLE md_task
+  MODIFY COLUMN task_code VARCHAR(100) NOT NULL COMMENT '任务编码',
+  MODIFY COLUMN workflow_instance_id BIGINT COMMENT '流程实例ID',
+  MODIFY COLUMN task_name VARCHAR(200) COMMENT '任务名称',
+  MODIFY COLUMN task_type VARCHAR(50) COMMENT '任务类型: approval/review/approve',
+  MODIFY COLUMN assignee VARCHAR(50) COMMENT '处理人',
+  MODIFY COLUMN delegation_user VARCHAR(50) COMMENT '委托人',
+  MODIFY COLUMN status VARCHAR(20) DEFAULT 'pending' COMMENT '状态: pending-待办/completed-已完成/cancelled-已取消',
+  MODIFY COLUMN priority INT DEFAULT 0 COMMENT '优先级',
+  MODIFY COLUMN due_date DATETIME COMMENT '截止时间',
+  MODIFY COLUMN complete_time DATETIME COMMENT '完成时间',
+  MODIFY COLUMN parent_task_id BIGINT COMMENT '父任务ID',
+  MODIFY COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  MODIFY COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间';
+
+-- 修复 md_master_data_type 字段注释
+ALTER TABLE md_master_data_type
+  MODIFY COLUMN type_code VARCHAR(100) NOT NULL COMMENT '类型编码',
+  MODIFY COLUMN type_name VARCHAR(200) NOT NULL COMMENT '类型名称',
+  MODIFY COLUMN parent_type_id BIGINT COMMENT '父类型ID',
+  MODIFY COLUMN category VARCHAR(50) COMMENT '分类: enterprise/product/supplier/customer',
+  MODIFY COLUMN icon VARCHAR(200) COMMENT '图标',
+  MODIFY COLUMN status VARCHAR(20) DEFAULT 'active' COMMENT '状态: active-启用/inactive-停用',
+  MODIFY COLUMN lifecycle_config TEXT COMMENT '生命周期配置JSON',
+  MODIFY COLUMN form_config TEXT COMMENT '表单配置JSON',
+  MODIFY COLUMN created_by VARCHAR(50) COMMENT '创建人',
+  MODIFY COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  MODIFY COLUMN updated_by VARCHAR(50) COMMENT '更新人',
+  MODIFY COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  MODIFY COLUMN description TEXT COMMENT '描述';
+
+-- 修复 md_master_data_instance 字段注释
+ALTER TABLE md_master_data_instance
+  MODIFY COLUMN type_id BIGINT NOT NULL COMMENT '数据类型ID',
+  MODIFY COLUMN data_code VARCHAR(200) NOT NULL COMMENT '数据编码',
+  MODIFY COLUMN data_name VARCHAR(500) NOT NULL COMMENT '数据名称',
+  MODIFY COLUMN data_value TEXT COMMENT '数据值JSON',
+  MODIFY COLUMN lifecycle_status VARCHAR(50) DEFAULT 'draft' COMMENT '生命周期状态: draft-草稿/active-激活/frozen-冻结/archived-归档',
+  MODIFY COLUMN version INT DEFAULT 1 COMMENT '版本号',
+  MODIFY COLUMN parent_id BIGINT COMMENT '父记录ID',
+  MODIFY COLUMN effective_date DATE COMMENT '生效日期',
+  MODIFY COLUMN expiry_date DATE COMMENT '失效日期',
+  MODIFY COLUMN created_by VARCHAR(50) COMMENT '创建人',
+  MODIFY COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  MODIFY COLUMN updated_by VARCHAR(50) COMMENT '更新人',
+  MODIFY COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间';
+
+-- 修复 md_lifecycle_state 字段注释
+ALTER TABLE md_lifecycle_state
+  MODIFY COLUMN type_id BIGINT NOT NULL COMMENT '数据类型ID',
+  MODIFY COLUMN state_code VARCHAR(50) NOT NULL COMMENT '状态编码',
+  MODIFY COLUMN state_name VARCHAR(100) NOT NULL COMMENT '状态名称',
+  MODIFY COLUMN state_type VARCHAR(50) COMMENT '状态类型: initial-初始/normal-正常/final-终态',
+  MODIFY COLUMN allowed_actions TEXT COMMENT '允许的操作JSON',
+  MODIFY COLUMN transitions TEXT COMMENT '状态转换配置JSON',
+  MODIFY COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  MODIFY COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间';
+
+-- 修复 md_version_snapshot 字段注释
+ALTER TABLE md_version_snapshot
+  MODIFY COLUMN entity_type VARCHAR(50) NOT NULL COMMENT '实体类型',
+  MODIFY COLUMN entity_id BIGINT NOT NULL COMMENT '实体ID',
+  MODIFY COLUMN version INT NOT NULL COMMENT '版本号',
+  MODIFY COLUMN snapshot_data TEXT COMMENT '快照数据JSON',
+  MODIFY COLUMN change_summary TEXT COMMENT '变更摘要',
+  MODIFY COLUMN operation_type VARCHAR(50) COMMENT '操作类型',
+  MODIFY COLUMN created_by VARCHAR(50) COMMENT '创建人',
+  MODIFY COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间';
+
+-- 修复 md_audit_log 字段注释
+ALTER TABLE md_audit_log
+  MODIFY COLUMN log_type VARCHAR(50) NOT NULL COMMENT '日志类型',
+  MODIFY COLUMN module VARCHAR(50) COMMENT '模块',
+  MODIFY COLUMN operation VARCHAR(50) COMMENT '操作',
+  MODIFY COLUMN entity_type VARCHAR(50) COMMENT '实体类型',
+  MODIFY COLUMN entity_id BIGINT COMMENT '实体ID',
+  MODIFY COLUMN entity_name VARCHAR(200) COMMENT '实体名称',
+  MODIFY COLUMN operation_detail TEXT COMMENT '操作详情JSON',
+  MODIFY COLUMN before_data TEXT COMMENT '操作前数据JSON',
+  MODIFY COLUMN after_data TEXT COMMENT '操作后数据JSON',
+  MODIFY COLUMN operator VARCHAR(50) COMMENT '操作人',
+  MODIFY COLUMN operator_ip VARCHAR(50) COMMENT '操作IP',
+  MODIFY COLUMN operation_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间';
+
+-- 修复所有表的id字段注释
+ALTER TABLE md_field_standard MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID';
+ALTER TABLE md_data_standard MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID';
+ALTER TABLE md_encoding_rule MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID';
+ALTER TABLE md_value_domain MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID';
+ALTER TABLE md_form MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID';
+ALTER TABLE md_form_field MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID';
+ALTER TABLE md_workflow_definition MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID';
+ALTER TABLE md_workflow_instance MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID';
+ALTER TABLE md_task MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID';
+ALTER TABLE md_master_data_type MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID';
+ALTER TABLE md_master_data_instance MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID';
+ALTER TABLE md_lifecycle_state MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID';
+ALTER TABLE md_version_snapshot MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID';
+ALTER TABLE md_audit_log MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID';
+
+-- 修复关联表注释
+ALTER TABLE role_permissions COMMENT '角色权限关联表';
+ALTER TABLE user_roles COMMENT '用户角色关联表';
+
+ALTER TABLE role_permissions
+  MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  MODIFY COLUMN role_id INT NOT NULL COMMENT '角色ID',
+  MODIFY COLUMN permission_id INT NOT NULL COMMENT '权限ID';
+
+ALTER TABLE user_roles
+  MODIFY COLUMN id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  MODIFY COLUMN user_id INT NOT NULL COMMENT '用户ID',
+  MODIFY COLUMN role_id INT NOT NULL COMMENT '角色ID';
+
+SELECT '所有表注释修复完成!' AS message;

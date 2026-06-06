@@ -14,8 +14,8 @@ USE mdm;
 -- =============================================
 
 -- 1.1 字段标准库表
-DROP TABLE IF EXISTS md_field_standard;
-CREATE TABLE md_field_standard (
+DROP TABLE IF EXISTS std_field;
+CREATE TABLE std_field (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
     field_code VARCHAR(100) NOT NULL COMMENT '字段编码',
     field_name VARCHAR(100) NOT NULL COMMENT '字段名称',
@@ -41,8 +41,8 @@ CREATE TABLE md_field_standard (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='字段标准库表';
 
 -- 1.2 数据标准视图表
-DROP TABLE IF EXISTS md_data_standard;
-CREATE TABLE md_data_standard (
+DROP TABLE IF EXISTS std_data;
+CREATE TABLE std_data (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
     standard_code VARCHAR(100) NOT NULL COMMENT '标准编码',
     standard_name VARCHAR(200) NOT NULL COMMENT '标准名称',
@@ -67,8 +67,8 @@ CREATE TABLE md_data_standard (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='数据标准视图表';
 
 -- 1.3 编码规则表
-DROP TABLE IF EXISTS md_encoding_rule;
-CREATE TABLE md_encoding_rule (
+DROP TABLE IF EXISTS std_encoding_rule;
+CREATE TABLE std_encoding_rule (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
     rule_code VARCHAR(100) NOT NULL COMMENT '规则编码',
     rule_name VARCHAR(200) NOT NULL COMMENT '规则名称',
@@ -84,8 +84,8 @@ CREATE TABLE md_encoding_rule (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='编码规则表';
 
 -- 1.4 值域表
-DROP TABLE IF EXISTS md_value_domain;
-CREATE TABLE md_value_domain (
+DROP TABLE IF EXISTS std_value_domain;
+CREATE TABLE std_value_domain (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
     domain_code VARCHAR(100) NOT NULL COMMENT '值域编码',
     domain_name VARCHAR(200) NOT NULL COMMENT '值域名称',
@@ -107,8 +107,8 @@ CREATE TABLE md_value_domain (
 -- =============================================
 
 -- 2.1 表单管理表
-DROP TABLE IF EXISTS md_form;
-CREATE TABLE md_form (
+DROP TABLE IF EXISTS frm_form;
+CREATE TABLE frm_form (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
     form_code VARCHAR(100) NOT NULL COMMENT '表单编码',
     form_name VARCHAR(200) NOT NULL COMMENT '表单名称',
@@ -128,8 +128,8 @@ CREATE TABLE md_form (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='表单管理表';
 
 -- 2.2 表单字段配置表
-DROP TABLE IF EXISTS md_form_field;
-CREATE TABLE md_form_field (
+DROP TABLE IF EXISTS frm_field;
+CREATE TABLE frm_field (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
     form_id BIGINT NOT NULL COMMENT '表单ID',
     field_standard_id BIGINT COMMENT '关联字段标准ID',
@@ -153,8 +153,8 @@ CREATE TABLE md_form_field (
 -- =============================================
 
 -- 3.1 流程定义表
-DROP TABLE IF EXISTS md_workflow_definition;
-CREATE TABLE md_workflow_definition (
+DROP TABLE IF EXISTS wfl_definition;
+CREATE TABLE wfl_definition (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
     workflow_code VARCHAR(100) NOT NULL COMMENT '流程编码',
     workflow_name VARCHAR(200) NOT NULL COMMENT '流程名称',
@@ -175,8 +175,8 @@ CREATE TABLE md_workflow_definition (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='流程定义表';
 
 -- 3.2 流程实例表
-DROP TABLE IF EXISTS md_workflow_instance;
-CREATE TABLE md_workflow_instance (
+DROP TABLE IF EXISTS wfl_instance;
+CREATE TABLE wfl_instance (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
     workflow_definition_id BIGINT NOT NULL COMMENT '流程定义ID',
     business_key VARCHAR(200) COMMENT '业务键',
@@ -195,8 +195,8 @@ CREATE TABLE md_workflow_instance (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='流程实例表';
 
 -- 3.3 任务表
-DROP TABLE IF EXISTS md_task;
-CREATE TABLE md_task (
+DROP TABLE IF EXISTS wfl_task;
+CREATE TABLE wfl_task (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
     task_code VARCHAR(100) NOT NULL COMMENT '任务编码',
     workflow_instance_id BIGINT COMMENT '流程实例ID',
@@ -222,8 +222,8 @@ CREATE TABLE md_task (
 -- =============================================
 
 -- 4.1 主数据类型表
-DROP TABLE IF EXISTS md_master_data_type;
-CREATE TABLE md_master_data_type (
+DROP TABLE IF EXISTS mst_type;
+CREATE TABLE mst_type (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
     type_code VARCHAR(100) NOT NULL COMMENT '类型编码',
     type_name VARCHAR(200) NOT NULL COMMENT '类型名称',
@@ -243,8 +243,8 @@ CREATE TABLE md_master_data_type (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='主数据类型表';
 
 -- 4.2 主数据实例表
-DROP TABLE IF EXISTS md_master_data_instance;
-CREATE TABLE md_master_data_instance (
+DROP TABLE IF EXISTS mst_instance;
+CREATE TABLE mst_instance (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
     type_id BIGINT NOT NULL COMMENT '数据类型ID',
     data_code VARCHAR(200) NOT NULL COMMENT '数据编码',
@@ -266,8 +266,8 @@ CREATE TABLE md_master_data_instance (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='主数据实例表';
 
 -- 4.3 生命周期状态表
-DROP TABLE IF EXISTS md_lifecycle_state;
-CREATE TABLE md_lifecycle_state (
+DROP TABLE IF EXISTS mst_lifecycle_state;
+CREATE TABLE mst_lifecycle_state (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
     type_id BIGINT NOT NULL COMMENT '数据类型ID',
     state_code VARCHAR(50) NOT NULL COMMENT '状态编码',
@@ -286,8 +286,8 @@ CREATE TABLE md_lifecycle_state (
 -- =============================================
 
 -- 5.1 版本快照表
-DROP TABLE IF EXISTS md_version_snapshot;
-CREATE TABLE md_version_snapshot (
+DROP TABLE IF EXISTS ver_snapshot;
+CREATE TABLE ver_snapshot (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
     entity_type VARCHAR(50) NOT NULL COMMENT '实体类型',
     entity_id BIGINT NOT NULL COMMENT '实体ID',
@@ -303,8 +303,8 @@ CREATE TABLE md_version_snapshot (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='版本快照表';
 
 -- 5.2 审计日志表
-DROP TABLE IF EXISTS md_audit_log;
-CREATE TABLE md_audit_log (
+DROP TABLE IF EXISTS ver_audit_log;
+CREATE TABLE ver_audit_log (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
     log_type VARCHAR(50) NOT NULL COMMENT '日志类型',
     module VARCHAR(50) COMMENT '模块',

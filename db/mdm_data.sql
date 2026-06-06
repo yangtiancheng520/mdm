@@ -21,7 +21,7 @@ INSERT INTO sys_organization (id, org_code, org_name, org_type, parent_id, level
 -- 2. 字段标准库初始数据
 -- =============================================
 
-INSERT INTO md_field_standard (field_code, field_name, field_type, length, description, status, category, is_required, created_by) VALUES
+INSERT INTO std_field (field_code, field_name, field_type, length, description, status, category, is_required, created_by) VALUES
 -- 企业基本信息
 ('COMPANY_NAME', '公司名称', 'string', 200, '公司全称', 'published', 'enterprise', 1, 'admin'),
 ('UNIFIED_SOCIAL_CODE', '统一社会信用代码', 'string', 18, '18位统一社会信用代码', 'published', 'enterprise', 1, 'admin'),
@@ -59,7 +59,7 @@ INSERT INTO md_field_standard (field_code, field_name, field_type, length, descr
 -- 3. 值域初始数据
 -- =============================================
 
-INSERT INTO md_value_domain (domain_code, domain_name, domain_type, values_definition, status, created_by) VALUES
+INSERT INTO std_value_domain (domain_code, domain_name, domain_type, values_definition, status, created_by) VALUES
 ('ENTERPRISE_TYPE', '企业类型', 'enum', '[{"value":"1","label":"国有企业","sort":1},{"value":"2","label":"集体企业","sort":2},{"value":"3","label":"私营企业","sort":3},{"value":"4","label":"股份制企业","sort":4},{"value":"5","label":"外商投资企业","sort":5},{"value":"6","label":"港澳台投资企业","sort":6}]', 'active', 'admin'),
 
 ('CURRENCY', '币种', 'enum', '[{"value":"CNY","label":"人民币","sort":1},{"value":"USD","label":"美元","sort":2},{"value":"EUR","label":"欧元","sort":3},{"value":"GBP","label":"英镑","sort":4},{"value":"JPY","label":"日元","sort":5}]', 'active', 'admin'),
@@ -80,7 +80,7 @@ INSERT INTO md_value_domain (domain_code, domain_name, domain_type, values_defin
 -- 4. 编码规则初始数据
 -- =============================================
 
-INSERT INTO md_encoding_rule (rule_code, rule_name, rule_definition, example, status, created_by, description) VALUES
+INSERT INTO std_encoding_rule (rule_code, rule_name, rule_definition, example, status, created_by, description) VALUES
 ('SUPPLIER_CODE', '供应商编码规则', '{"segments":[{"type":"fixed","value":"SUP"},{"type":"date","format":"yyyyMMdd"},{"type":"sequence","length":4,"padding":"0"}],"resetCycle":"daily"}', 'SUP202606050001', 'active', 'admin', '供应商编码自动生成规则'),
 
 ('CUSTOMER_CODE', '客户编码规则', '{"segments":[{"type":"fixed","value":"CUS"},{"type":"date","format":"yyyyMMdd"},{"type":"sequence","length":4,"padding":"0"}],"resetCycle":"daily"}', 'CUS202606050001', 'active', 'admin', '客户编码自动生成规则'),
@@ -91,7 +91,7 @@ INSERT INTO md_encoding_rule (rule_code, rule_name, rule_definition, example, st
 -- 5. 主数据类型初始数据
 -- =============================================
 
-INSERT INTO md_master_data_type (type_code, type_name, category, description, lifecycle_config, status, created_by) VALUES
+INSERT INTO mst_type (type_code, type_name, category, description, lifecycle_config, status, created_by) VALUES
 ('ENTERPRISE', '企业信息', 'enterprise', '企业基础信息管理', '{"states":[{"code":"draft","name":"草稿","type":"initial"},{"code":"active","name":"生效","type":"normal"},{"code":"frozen","name":"冻结","type":"normal"},{"code":"archived","name":"归档","type":"final"}],"transitions":[{"from":"draft","to":"active","action":"submit"},{"from":"active","to":"frozen","action":"freeze"},{"from":"frozen","to":"active","action":"unfreeze"},{"from":"active","to":"archived","action":"archive"}]}', 'active', 'admin'),
 
 ('SUPPLIER', '供应商信息', 'supplier', '供应商信息管理', '{"states":[{"code":"draft","name":"草稿","type":"initial"},{"code":"active","name":"生效","type":"normal"},{"code":"frozen","name":"冻结","type":"normal"},{"code":"archived","name":"归档","type":"final"}],"transitions":[{"from":"draft","to":"active","action":"submit"},{"from":"active","to":"frozen","action":"freeze"},{"from":"frozen","to":"active","action":"unfreeze"},{"from":"active","to":"archived","action":"archive"}]}', 'active', 'admin'),
@@ -102,7 +102,7 @@ INSERT INTO md_master_data_type (type_code, type_name, category, description, li
 -- 6. 流程定义初始数据
 -- =============================================
 
-INSERT INTO md_workflow_definition (workflow_code, workflow_name, workflow_type, integration_type, status, created_by, description) VALUES
+INSERT INTO wfl_definition (workflow_code, workflow_name, workflow_type, integration_type, status, created_by, description) VALUES
 ('SUPPLIER_APPROVAL', '供应商审批流程', 'approval', 'internal', 'active', 'admin', '供应商新增/变更审批流程'),
 ('CUSTOMER_APPROVAL', '客户审批流程', 'approval', 'internal', 'active', 'admin', '客户新增/变更审批流程'),
 ('DATA_CHANGE_APPROVAL', '主数据变更审批流程', 'change', 'internal', 'active', 'admin', '主数据变更审批流程');
