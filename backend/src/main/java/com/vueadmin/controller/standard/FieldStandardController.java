@@ -77,12 +77,12 @@ public class FieldStandardController {
     /**
      * 获取已发布的字段标准列表
      *
-     * @return 已发布的字段标准列表
+     * @return 已启用的字段标准列表
      */
-    @GetMapping("/published")
-    @Operation(summary = "获取已发布的字段标准列表", description = "获取所有已发布状态的字段标准")
-    public ApiResponse<List<FieldStandardDto>> getPublished() {
-        return ApiResponse.success(fieldStandardService.getPublished());
+    @GetMapping("/active")
+    @Operation(summary = "获取已启用的字段标准列表", description = "获取所有已启用状态的字段标准")
+    public ApiResponse<List<FieldStandardDto>> getActive() {
+        return ApiResponse.success(fieldStandardService.getActive());
     }
 
     /**
@@ -248,57 +248,38 @@ public class FieldStandardController {
     }
 
     /**
-     * 发布字段标准
+     * 启用字段标准
      *
      * @param id 主键ID
      * @return 更新后的字段标准
      */
-    @PutMapping("/{id}/publish")
-    @Operation(summary = "发布字段标准", description = "将草稿状态的字段标准发布，发布后可被其他模块使用")
-    public ApiResponse<FieldStandardDto> publish(
+    @PutMapping("/{id}/activate")
+    @Operation(summary = "启用字段标准", description = "启用字段标准")
+    public ApiResponse<FieldStandardDto> activate(
             @Parameter(description = "字段标准ID")
             @PathVariable Long id) {
         try {
-            FieldStandardDto result = fieldStandardService.publish(id);
-            return ApiResponse.success("发布成功", result);
+            FieldStandardDto result = fieldStandardService.activate(id);
+            return ApiResponse.success("启用成功", result);
         } catch (RuntimeException e) {
             return ApiResponse.error(400, e.getMessage());
         }
     }
 
     /**
-     * 归档字段标准
+     * 停用字段标准
      *
      * @param id 主键ID
      * @return 更新后的字段标准
      */
-    @PutMapping("/{id}/archive")
-    @Operation(summary = "归档字段标准", description = "将字段标准归档，归档后不再显示在列表中")
-    public ApiResponse<FieldStandardDto> archive(
+    @PutMapping("/{id}/deactivate")
+    @Operation(summary = "停用字段标准", description = "停用字段标准")
+    public ApiResponse<FieldStandardDto> deactivate(
             @Parameter(description = "字段标准ID")
             @PathVariable Long id) {
         try {
-            FieldStandardDto result = fieldStandardService.archive(id);
-            return ApiResponse.success("归档成功", result);
-        } catch (RuntimeException e) {
-            return ApiResponse.error(400, e.getMessage());
-        }
-    }
-
-    /**
-     * 取消发布字段标准
-     *
-     * @param id 主键ID
-     * @return 更新后的字段标准
-     */
-    @PutMapping("/{id}/unpublish")
-    @Operation(summary = "取消发布字段标准", description = "将已发布的字段标准改回草稿状态")
-    public ApiResponse<FieldStandardDto> unpublish(
-            @Parameter(description = "字段标准ID")
-            @PathVariable Long id) {
-        try {
-            FieldStandardDto result = fieldStandardService.unpublish(id);
-            return ApiResponse.success("取消发布成功", result);
+            FieldStandardDto result = fieldStandardService.deactivate(id);
+            return ApiResponse.success("停用成功", result);
         } catch (RuntimeException e) {
             return ApiResponse.error(400, e.getMessage());
         }
@@ -341,9 +322,8 @@ public class FieldStandardController {
     @Operation(summary = "获取统计信息", description = "获取各状态的字段标准数量统计")
     public ApiResponse<Map<String, Long>> getStatistics() {
         Map<String, Long> statistics = new java.util.HashMap<>();
-        statistics.put("draft", fieldStandardService.countByStatus("draft"));
-        statistics.put("published", fieldStandardService.countByStatus("published"));
-        statistics.put("archived", fieldStandardService.countByStatus("archived"));
+        statistics.put("启用", fieldStandardService.countByStatus("启用"));
+        statistics.put("停用", fieldStandardService.countByStatus("停用"));
         return ApiResponse.success(statistics);
     }
 }

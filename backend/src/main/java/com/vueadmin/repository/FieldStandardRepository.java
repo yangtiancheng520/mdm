@@ -111,29 +111,20 @@ public interface FieldStandardRepository extends JpaRepository<FieldStandard, Lo
     List<String> findAllCategories();
 
     /**
-     * 根据引用源查询
+     * 根据值域ID查询
      *
-     * @param referenceSource 引用源
+     * @param domainId 值域ID
      * @return 字段标准列表
      */
-    List<FieldStandard> findByReferenceSource(String referenceSource);
+    List<FieldStandard> findByDomainId(Long domainId);
 
     /**
-     * 根据引用ID和引用源查询
+     * 查询已启用的字段标准
      *
-     * @param referenceId     引用ID
-     * @param referenceSource 引用源
-     * @return 字段标准列表
+     * @return 已启用的字段标准列表
      */
-    List<FieldStandard> findByReferenceIdAndReferenceSource(Long referenceId, String referenceSource);
-
-    /**
-     * 查询已发布的字段标准
-     *
-     * @return 已发布的字段标准列表
-     */
-    @Query("SELECT fs FROM FieldStandard fs WHERE fs.status = 'published' ORDER BY fs.fieldCode")
-    List<FieldStandard> findAllPublished();
+    @Query("SELECT fs FROM FieldStandard fs WHERE fs.status = '启用' ORDER BY fs.fieldCode")
+    List<FieldStandard> findAllActive();
 
     /**
      * 查询指定版本的字段标准

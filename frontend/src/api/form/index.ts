@@ -45,6 +45,7 @@ export interface FormComponentDto {
   fieldName: string
   fieldType: string
   domainId: number
+  componentType: string // 控件类型
   groupId: number
   rowIndex: number
   colIndex: number
@@ -62,12 +63,56 @@ export interface FormComponentDto {
   status: string
 }
 
+// 控件类型定义
+export const COMPONENT_TYPES: Record<string, { label: string; value: string; hasDomain: boolean }> = {
+  // 有值域时的控件
+  select: { label: '下拉选择', value: 'select', hasDomain: true },
+  radio: { label: '单选框', value: 'radio', hasDomain: true },
+  checkbox: { label: '复选框', value: 'checkbox', hasDomain: true },
+  // 无值域时的控件
+  input: { label: '单行文本', value: 'input', hasDomain: false },
+  textarea: { label: '多行文本', value: 'textarea', hasDomain: false },
+  inputNumber: { label: '数字输入', value: 'inputNumber', hasDomain: false },
+  slider: { label: '滑块', value: 'slider', hasDomain: false },
+  rate: { label: '评分', value: 'rate', hasDomain: false },
+  datePicker: { label: '日期选择', value: 'datePicker', hasDomain: false },
+  dateTimePicker: { label: '日期时间', value: 'dateTimePicker', hasDomain: false },
+  timePicker: { label: '时间选择', value: 'timePicker', hasDomain: false },
+  switch: { label: '开关', value: 'switch', hasDomain: false },
+}
+
+// 根据字段类型获取默认控件
+export function getDefaultComponentType(fieldType: string, hasDomain: boolean): string {
+  if (hasDomain) return 'select'
+  switch (fieldType) {
+    case 'string': return 'input'
+    case 'number': return 'inputNumber'
+    case 'date': return 'datePicker'
+    case 'datetime': return 'dateTimePicker'
+    case 'boolean': return 'switch'
+    default: return 'input'
+  }
+}
+
+// 根据是否有值域获取可选控件列表
+export function getAvailableComponentTypes(hasDomain: boolean): string[] {
+  return Object.values(COMPONENT_TYPES)
+    .filter(t => t.hasDomain === hasDomain)
+    .map(t => t.value)
+}
+
 // 子表字段配置
 export interface SubTableFieldDto {
   id: number
   fieldCode: string
   fieldName: string
   fieldType: string
+  domainId?: number
+  componentType?: string
+  isRequired?: boolean
+  isReadonly?: boolean
+  placeholder?: string
+  defaultValue?: string
   _uid?: number
 }
 

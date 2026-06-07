@@ -64,6 +64,24 @@ const routes = [
         meta: { title: '数据标准视图' }
       },
       {
+        path: 'standard/view/edit',
+        name: 'StandardViewEdit',
+        component: () => import('../views/standard/view/edit.vue'),
+        meta: { title: '新建视图' }
+      },
+      {
+        path: 'standard/view/edit/:id',
+        name: 'StandardViewEditId',
+        component: () => import('../views/standard/view/edit.vue'),
+        meta: { title: '编辑视图' }
+      },
+      {
+        path: 'standard/view/design/:id',
+        name: 'StandardViewDesign',
+        component: () => import('../views/standard/view/design.vue'),
+        meta: { title: '视图设计' }
+      },
+      {
         path: 'standard/encoding',
         name: 'StandardEncoding',
         component: () => import('../views/standard/encoding/index.vue'),
@@ -75,12 +93,6 @@ const routes = [
         component: () => import('../views/standard/domain/index.vue'),
         meta: { title: '值域管理' }
       },
-      {
-        path: 'standard/approval',
-        name: 'StandardApproval',
-        component: () => import('../views/standard/approval/index.vue'),
-        meta: { title: '变更审批配置' }
-      },
       // 表单与视图设计中心
       {
         path: 'form/manage',
@@ -89,16 +101,10 @@ const routes = [
         meta: { title: '表单管理' }
       },
       {
-        path: 'form/designer',
-        name: 'FormDesigner',
-        component: () => import('../views/form/designer/index.vue'),
+        path: 'form/design/:id',
+        name: 'FormDesign',
+        component: () => import('../views/form/design/index.vue'),
         meta: { title: '表单设计器' }
-      },
-      {
-        path: 'form/template',
-        name: 'FormTemplate',
-        component: () => import('../views/form/template/index.vue'),
-        meta: { title: '导入导出模板' }
       },
       // 流程与任务管理中心
       {

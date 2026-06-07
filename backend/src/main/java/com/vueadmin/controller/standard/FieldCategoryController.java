@@ -109,13 +109,4 @@ public class FieldCategoryController {
         fieldCategoryService.batchDelete(ids);
         return ApiResponse.success();
     }
-
-    /**
-     * 获取分类下的字段数量
-     */
-    @GetMapping("/{id}/field-count")
-    public ApiResponse<Long> getFieldCount(@PathVariable Long id) {
-        long count = fieldCategoryService.getFieldCount(id);
-        return ApiResponse.success(count);
-    }
 }

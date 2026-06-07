@@ -51,13 +51,33 @@ public class MenuService {
         List<Permission> allMenus = permissionRepository.findByTypeOrderBySortAsc(Permission.Type.menu);
         log.debug("所有菜单数量: {}", allMenus.size());
 
-        // 3. 过滤出用户有权限的菜单
+        // 3. 过滤出用户有权限的菜单，并自动包含所有父菜单
         Set<Long> userPermissionIds = new HashSet<>(permissionIds);
+        Set<Long> menuIdsWithParents = new HashSet<>();
+
+        // 构建菜单ID到父ID的映射
+        Map<Long, Long> menuParentMap = allMenus.stream()
+                .filter(m -> m.getParentId() != null)
+                .collect(Collectors.toMap(Permission::getId, Permission::getParentId));
+
+        // 对于每个用户有权限的菜单，添加它及其所有父菜单
+        for (Permission menu : allMenus) {
+            if (userPermissionIds.contains(menu.getId())) {
+                menuIdsWithParents.add(menu.getId());
+                // 递归添加所有父菜单
+                Long parentId = menu.getParentId();
+                while (parentId != null) {
+                    menuIdsWithParents.add(parentId);
+                    parentId = menuParentMap.get(parentId);
+                }
+            }
+        }
+
         List<Permission> userMenus = allMenus.stream()
-                .filter(p -> userPermissionIds.contains(p.getId()))
+                .filter(p -> menuIdsWithParents.contains(p.getId()))
                 .collect(Collectors.toList());
 
-        log.debug("用户有权限的菜单数量: {}", userMenus.size());
+        log.debug("用户有权限的菜单数量（包含父菜单）: {}", userMenus.size());
 
         // 4. 构建树形结构
         return buildMenuTree(userMenus, null);

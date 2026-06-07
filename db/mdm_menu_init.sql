@@ -60,9 +60,7 @@ INSERT INTO permissions (id, name, code, type, parent_id, path, icon, sort, stat
 
 -- 2. 表单与视图设计中心 (父ID: 200)
 INSERT INTO permissions (id, name, code, type, parent_id, path, icon, sort, status, created_at) VALUES
-(201, '表单管理', 'form:manage', 'menu', 200, '/form/manage', 'Files', 1, 'active', NOW()),
-(202, '表单设计器', 'form:designer', 'menu', 200, '/form/designer', 'EditPen', 2, 'active', NOW()),
-(203, '导入导出模板', 'form:template', 'menu', 200, '/form/template', 'Download', 3, 'active', NOW());
+(201, '表单管理', 'form:manage', 'menu', 200, '/form/manage', 'Files', 1, 'active', NOW());
 
 -- 3. 流程与任务管理中心 (父ID: 300)
 INSERT INTO permissions (id, name, code, type, parent_id, path, icon, sort, status, created_at) VALUES

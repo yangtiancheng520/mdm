@@ -26,17 +26,24 @@ public class FieldStandardDto {
 
     /**
      * 字段类型
-     * 支持类型：string/number/date/datetime/boolean/text/select/multi_select
+     * string: 字符
+     * integer: 整型
+     * boolean: 布尔
+     * decimal: 浮点型
+     * date: 日期
+     * datetime: 日期时间
+     * time: 时间
+     * text: 长文本
      */
     private String fieldType;
 
     /**
-     * 字段长度（适用于string类型）
+     * 字段长度（适用于string/decimal类型）
      */
     private Integer length;
 
     /**
-     * 小数精度（适用于number类型）
+     * 小数精度（适用于decimal类型）
      */
     private Integer precision;
 
@@ -46,24 +53,26 @@ public class FieldStandardDto {
     private String defaultValue;
 
     /**
-     * 是否必填
+     * 是否关联值域
+     * 0: 否
+     * 1: 是
      */
-    private Integer isRequired;
+    private Integer isEnum;
 
     /**
-     * 验证规则（JSON格式）
+     * 值域ID（关联值域表）
      */
-    private String validationRule;
+    private Long domainId;
 
     /**
-     * 引用ID
+     * 值域编码
      */
-    private Long referenceId;
+    private String domainCode;
 
     /**
-     * 引用来源
+     * 值域名称
      */
-    private String referenceSource;
+    private String domainName;
 
     /**
      * 分类ID
@@ -82,9 +91,6 @@ public class FieldStandardDto {
 
     /**
      * 状态
-     * draft: 草稿
-     * published: 已发布
-     * archived: 已归档
      */
     private String status;
 

@@ -226,50 +226,6 @@ CREATE TABLE md_form (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='表单管理表';
 ```
 
-#### 2.2.2 表单字段配置表
-
-```sql
-CREATE TABLE md_form_field (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
-    form_id BIGINT NOT NULL COMMENT '表单ID',
-    field_standard_id BIGINT COMMENT '关联字段标准ID',
-    field_name VARCHAR(100) NOT NULL COMMENT '字段名称',
-    field_label VARCHAR(200) COMMENT '字段标签',
-    field_type VARCHAR(50) COMMENT '字段类型',
-    field_config TEXT COMMENT '字段配置JSON: {placeholder, disabled, visible, rules}',
-    display_order INT DEFAULT 0 COMMENT '显示顺序',
-    is_visible TINYINT DEFAULT 1 COMMENT '是否可见: 0-否 1-是',
-    is_editable TINYINT DEFAULT 1 COMMENT '是否可编辑: 0-否 1-是',
-    is_required TINYINT DEFAULT 0 COMMENT '是否必填: 0-否 1-是',
-    validation_rules TEXT COMMENT '校验规则JSON',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    INDEX idx_form_id (form_id),
-    INDEX idx_field_standard_id (field_standard_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='表单字段配置表';
-```
-
-#### 2.2.3 导入导出模板表
-
-```sql
-CREATE TABLE md_import_export_template (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
-    template_code VARCHAR(100) NOT NULL UNIQUE COMMENT '模板编码',
-    template_name VARCHAR(200) NOT NULL COMMENT '模板名称',
-    template_type VARCHAR(20) COMMENT '模板类型: import-导入/export-导出',
-    form_id BIGINT COMMENT '关联表单ID',
-    template_file VARCHAR(500) COMMENT '模板文件路径',
-    mapping_config TEXT COMMENT '字段映射配置JSON: [{excelColumn, fieldName, converter}]',
-    created_by VARCHAR(50) COMMENT '创建人',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    updated_by VARCHAR(50) COMMENT '更新人',
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    description TEXT COMMENT '描述',
-    INDEX idx_template_code (template_code),
-    INDEX idx_form_id (form_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='导入导出模板表';
-```
-
 ### 2.3 流程与任务管理中心模块
 
 #### 2.3.1 流程定义表

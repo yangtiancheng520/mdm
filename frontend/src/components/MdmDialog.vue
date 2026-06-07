@@ -1,15 +1,24 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: boolean
   title: string
   width?: string
-}>()
+  showFooter?: boolean
+  confirmText?: string
+  cancelText?: string
+}>(), {
+  width: '600px',
+  showFooter: true,
+  confirmText: '确定',
+  cancelText: '取消'
+})
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   (e: 'cancel'): void
+  (e: 'confirm'): void
 }>()
 
 const visible = ref(props.modelValue)
@@ -26,11 +35,19 @@ function close() {
   visible.value = false
   emit('cancel')
 }
+
+function handleConfirm() {
+  emit('confirm')
+}
+
+function handleCancel() {
+  close()
+}
 </script>
 
 <template>
   <div v-if="visible" class="mdm-dialog-overlay">
-    <div class="mdm-dialog-wrap" :style="{ width: width || '600px' }">
+    <div class="mdm-dialog-wrap" :style="{ width: width }">
       <!-- 弹窗标题栏 -->
       <div class="mdm-dialog-head">
         <div class="mdm-dialog-title">{{ title }}</div>
@@ -41,6 +58,11 @@ function close() {
         <slot></slot>
       </div>
       <!-- 底部按钮 -->
+      <div class="mdm-dialog-footer" v-if="showFooter && !$slots.footer">
+        <el-button @click="handleCancel">{{ cancelText }}</el-button>
+        <el-button type="primary" @click="handleConfirm">{{ confirmText }}</el-button>
+      </div>
+      <!-- 自定义底部 -->
       <div class="mdm-dialog-footer" v-if="$slots.footer">
         <slot name="footer"></slot>
       </div>

@@ -127,27 +127,6 @@ CREATE TABLE frm_form (
     INDEX idx_master_data_type_id (master_data_type_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='表单管理表';
 
--- 2.2 表单字段配置表
-DROP TABLE IF EXISTS frm_field;
-CREATE TABLE frm_field (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
-    form_id BIGINT NOT NULL COMMENT '表单ID',
-    field_standard_id BIGINT COMMENT '关联字段标准ID',
-    field_name VARCHAR(100) NOT NULL COMMENT '字段名称',
-    field_label VARCHAR(200) COMMENT '字段标签',
-    field_type VARCHAR(50) COMMENT '字段类型',
-    field_config TEXT COMMENT '字段配置JSON',
-    display_order INT DEFAULT 0 COMMENT '显示顺序',
-    is_visible TINYINT DEFAULT 1 COMMENT '是否可见: 0-否 1-是',
-    is_editable TINYINT DEFAULT 1 COMMENT '是否可编辑: 0-否 1-是',
-    is_required TINYINT DEFAULT 0 COMMENT '是否必填: 0-否 1-是',
-    validation_rules TEXT COMMENT '校验规则JSON',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    INDEX idx_form_id (form_id),
-    INDEX idx_field_standard_id (field_standard_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='表单字段配置表';
-
 -- =============================================
 -- 3. 流程与任务管理中心模块
 -- =============================================

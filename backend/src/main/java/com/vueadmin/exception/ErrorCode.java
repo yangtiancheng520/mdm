@@ -68,6 +68,7 @@ public enum ErrorCode {
     FILE_SIZE_ERROR(40603, "文件大小超出限制"),
 
     // 系统错误 5xxxx
+    BUSINESS_ERROR(40000, "业务处理失败"),
     SYSTEM_ERROR(50000, "系统错误"),
     DATABASE_ERROR(50001, "数据库错误"),
     CACHE_ERROR(50002, "缓存错误"),

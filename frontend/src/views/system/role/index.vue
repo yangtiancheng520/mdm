@@ -124,7 +124,22 @@ function handleConfirmDelete() {
 async function handleSubmit() {
   try {
     const checkedKeys = treeRef.value?.getCheckedKeys() || []
-    form.value.permissions = checkedKeys
+    const halfCheckedKeys = treeRef.value?.getHalfCheckedKeys() || []
+
+    // 保存所有完全勾选的节点
+    const validKeys = [...checkedKeys]
+
+    // 对于半选的父节点，只保存菜单类型的节点
+    // 因为菜单需要显示，但按钮权限不应该保存半选状态
+    halfCheckedKeys.forEach(key => {
+      const node = treeRef.value?.getNode(key)
+      if (node && node.data && node.data.type === 'menu') {
+        // 如果是菜单节点，即使半选也要保存
+        validKeys.push(key)
+      }
+    })
+
+    form.value.permissions = validKeys
 
     if (form.value.id) {
       await updateRole(form.value.id, form.value)
@@ -144,7 +159,13 @@ async function handleSubmit() {
 watch(dialogVisible, (val) => {
   if (val && form.value.permissions.length > 0) {
     nextTick(() => {
-      treeRef.value?.setCheckedKeys(form.value.permissions)
+      // 过滤掉非叶子节点的权限，只设置叶子节点
+      // 这样Element Plus会自动计算父节点的状态
+      const leafKeys = form.value.permissions.filter(key => {
+        const node = treeRef.value?.getNode(key)
+        return node && node.isLeaf
+      })
+      treeRef.value?.setCheckedKeys(leafKeys)
     })
   }
 })

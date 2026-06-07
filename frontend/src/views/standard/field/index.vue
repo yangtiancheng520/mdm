@@ -11,8 +11,8 @@ import {
   updateFieldStandard,
   deleteFieldStandard,
   batchDeleteFieldStandard,
-  publishFieldStandard,
-  archiveFieldStandard,
+  activateFieldStandard,
+  deactivateFieldStandard,
   type FieldStandard,
   type FieldStandardForm,
   type FieldStatus,
@@ -24,6 +24,10 @@ import {
   getActiveCategoryTree,
   type FieldCategory
 } from '../../../api/standard/fieldCategory'
+import {
+  getActiveValueDomainList,
+  type ValueDomain
+} from '../../../api/standard/valueDomain'
 import MdmDialog from '../../../components/MdmDialog.vue'
 import MdmConfirmDialog from '../../../components/MdmConfirmDialog.vue'
 import CategoryTreeSelect from '../../../components/common/CategoryTreeSelect.vue'
@@ -35,6 +39,9 @@ const selectedRows = ref<FieldStandard[]>([])
 
 // 分类树数据
 const categoryTreeData = ref<FieldCategory[]>([])
+
+// 值域列表
+const domainList = ref<ValueDomain[]>([])
 
 // 搜索表单
 const searchForm = ref({
@@ -58,14 +65,26 @@ const form = ref<FieldStandardForm>({
   fieldCode: '',
   fieldName: '',
   fieldType: 'string',
+  // 基础配置
   length: null,
   precision: null,
-  defaultValue: '',
-  required: false,
   categoryId: null,
-  status: 'draft',
-  description: ''
+  isEnum: false,      // 是否关联值域
+  domainId: null,     // 值域ID
+  status: '启用',
+  description: '',
+  // 扩展配置
+  defaultValue: null
 })
+
+// 过滤后的值域列表（按字段类型过滤）
+const filteredDomainList = computed(() => {
+  if (!form.value.fieldType) return []
+  return domainList.value.filter(d => d.dataType === form.value.fieldType)
+})
+
+// 是否支持关联值域的字段类型
+const supportEnumTypes = ['string', 'integer', 'decimal', 'boolean']
 
 // 分页
 const currentPage = ref(1)
@@ -79,6 +98,40 @@ async function fetchCategoryTree() {
     categoryTreeData.value = res.data || []
   } catch (error) {
     console.error(error)
+  }
+}
+
+// 获取值域列表
+async function fetchDomainList() {
+  try {
+    const res = await getActiveValueDomainList()
+    domainList.value = res.data || []
+  } catch (error) {
+    console.error(error)
+  }
+}
+
+// 值域选择变化 - 自动带入长度
+function handleDomainChange() {
+  if (form.value.domainId) {
+    const domain = domainList.value.find(d => d.id === form.value.domainId)
+    if (domain) {
+      // 自动带入值域的长度
+      form.value.length = domain.dataLength
+    }
+  }
+}
+
+// 字段类型变化 - 清空值域选择
+function handleFieldTypeChange() {
+  form.value.isEnum = false
+  form.value.domainId = null
+}
+
+// 切换关联值域
+function handleIsEnumChange() {
+  if (!form.value.isEnum) {
+    form.value.domainId = null
   }
 }
 
@@ -103,16 +156,7 @@ function getCategoryName(categoryId: number | null): string {
 
 // 计算当前状态标签样式
 const getStatusClass = (status: FieldStatus) => {
-  switch (status) {
-    case 'draft':
-      return 'status-draft'
-    case 'published':
-      return 'status-published'
-    case 'archived':
-      return 'status-archived'
-    default:
-      return ''
-  }
+  return status === '启用' ? 'status-active' : 'status-inactive'
 }
 
 // 获取状态标签文本
@@ -125,6 +169,16 @@ const getStatusLabel = (status: FieldStatus) => {
 const getFieldTypeLabel = (type: FieldType) => {
   const option = FIELD_TYPE_OPTIONS.find(o => o.value === type)
   return option?.label || type
+}
+
+// 判断是否显示某类配置
+const showConfig = {
+  // 长度：字符、浮点型
+  length: computed(() => ['string', 'decimal'].includes(form.value.fieldType)),
+  // 小数位：仅浮点型
+  precision: computed(() => form.value.fieldType === 'decimal'),
+  // 默认值
+  defaultValue: computed(() => ['string', 'integer', 'decimal', 'boolean', 'date', 'datetime', 'time', 'text'].includes(form.value.fieldType))
 }
 
 // 获取字段列表
@@ -192,13 +246,16 @@ function handleAdd() {
     fieldCode: '',
     fieldName: '',
     fieldType: 'string',
+    // 基础配置
     length: null,
     precision: null,
-    defaultValue: '',
-    required: false,
     categoryId: null,
-    status: 'draft',
-    description: ''
+    isEnum: false,
+    domainId: null,
+    status: '启用',
+    description: '',
+    // 扩展配置
+    defaultValue: null
   }
   dialogVisible.value = true
 }
@@ -211,13 +268,16 @@ function handleEdit(row: FieldStandard) {
     fieldCode: row.fieldCode,
     fieldName: row.fieldName,
     fieldType: row.fieldType,
+    // 基础配置
     length: row.length,
     precision: row.precision,
-    defaultValue: row.defaultValue || '',
-    required: row.required,
     categoryId: row.categoryId,
+    isEnum: row.isEnum,
+    domainId: row.domainId,
     status: row.status,
-    description: row.description || ''
+    description: row.description || '',
+    // 扩展配置
+    defaultValue: row.defaultValue
   }
   dialogVisible.value = true
 }
@@ -258,30 +318,26 @@ function handleBatchDelete() {
   confirmVisible.value = true
 }
 
-// 发布
-async function handlePublish(row: FieldStandard) {
+// 启用
+async function handleActivate(row: FieldStandard) {
   try {
-    await publishFieldStandard(row.id)
-    ElMessage.success('发布成功')
+    await activateFieldStandard(row.id)
+    ElMessage.success('启用成功')
     fetchData()
   } catch (error: any) {
-    ElMessage.error(error.response?.data?.message || '发布失败')
+    ElMessage.error(error.response?.data?.message || '启用失败')
   }
 }
 
-// 归档
-function handleArchive(row: FieldStandard) {
-  confirmMessage.value = `确定要归档字段「${row.fieldName}」吗？`
-  confirmAction.value = async () => {
-    try {
-      await archiveFieldStandard(row.id)
-      ElMessage.success('归档成功')
-      fetchData()
-    } catch (error: any) {
-      ElMessage.error(error.response?.data?.message || '归档失败')
-    }
+// 停用
+async function handleDeactivate(row: FieldStandard) {
+  try {
+    await deactivateFieldStandard(row.id)
+    ElMessage.success('停用成功')
+    fetchData()
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.message || '停用失败')
   }
-  confirmVisible.value = true
 }
 
 // 选择变化
@@ -337,13 +393,24 @@ async function handleSubmit() {
     ElMessage.warning('请输入字段名称')
     return
   }
+  // 关联值域时必须选择值域
+  if (form.value.isEnum && !form.value.domainId) {
+    ElMessage.warning('请选择值域')
+    return
+  }
+
+  // 转换数据格式：isEnum 从 boolean 转为 number
+  const submitData = {
+    ...form.value,
+    isEnum: form.value.isEnum ? 1 : 0
+  }
 
   try {
     if (form.value.id) {
-      await updateFieldStandard(form.value.id, form.value)
+      await updateFieldStandard(form.value.id, submitData)
       ElMessage.success('更新成功')
     } else {
-      await createFieldStandard(form.value)
+      await createFieldStandard(submitData)
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false
@@ -367,27 +434,16 @@ function handleSizeChange(size: number) {
 
 // 获取操作按钮
 function getActionButtons(row: FieldStandard) {
-  const buttons: { label: string; action: () => void; class?: string }[] = [
+  return [
     { label: '编辑', action: () => handleEdit(row) },
     { label: '删除', action: () => handleDelete(row), class: 'delete' }
   ]
-
-  // 草稿状态可以发布
-  if (row.status === 'draft') {
-    buttons.splice(1, 0, { label: '发布', action: () => handlePublish(row) })
-  }
-
-  // 已发布状态可以归档
-  if (row.status === 'published') {
-    buttons.splice(1, 0, { label: '归档', action: () => handleArchive(row) })
-  }
-
-  return buttons
 }
 
 onMounted(() => {
   console.log('字段标准库页面已挂载')
   fetchCategoryTree()
+  fetchDomainList()
   fetchData()
 })
 </script>
@@ -423,7 +479,6 @@ onMounted(() => {
       </div>
       <div class="mdm-right-group">
         <button class="mdm-btn-red" @click="handleAdd">+ 新增</button>
-        <button class="mdm-btn-outline" :disabled="selectedRows.length === 0" @click="handleBatchDelete">删除</button>
         <button class="mdm-btn-outline" @click="handleSearch">查询</button>
         <button class="mdm-btn-outline" @click="handleReset">重置</button>
       </div>
@@ -441,6 +496,8 @@ onMounted(() => {
             <th>字段名称</th>
             <th>字段类型</th>
             <th>长度</th>
+            <th>小数位</th>
+            <th>值域</th>
             <th>分类</th>
             <th>状态</th>
             <th>创建时间</th>
@@ -456,10 +513,12 @@ onMounted(() => {
             <td>{{ row.fieldName }}</td>
             <td>{{ getFieldTypeLabel(row.fieldType) }}</td>
             <td>{{ row.length || '-' }}</td>
+            <td>{{ row.precision || '-' }}</td>
+            <td>{{ row.domainName || '-' }}</td>
             <td>{{ getCategoryName(row.categoryId) }}</td>
             <td>
-              <span class="custom-status-tag" :class="getStatusClass(row.status)">
-                {{ getStatusLabel(row.status) }}
+              <span class="custom-status-tag" :class="row.status === '启用' ? 'status-active' : 'status-inactive'">
+                {{ row.status }}
               </span>
             </td>
             <td>{{ row.createdAt }}</td>
@@ -478,7 +537,7 @@ onMounted(() => {
             </td>
           </tr>
           <tr v-if="tableData.length === 0 && !loading">
-            <td colspan="9" class="mdm-empty-data">暂无数据</td>
+            <td colspan="11" class="mdm-empty-data">暂无数据</td>
           </tr>
         </tbody>
       </table>
@@ -500,76 +559,79 @@ onMounted(() => {
     </div>
 
     <!-- 新增/编辑弹窗 -->
-    <MdmDialog v-model="dialogVisible" :title="dialogTitle" width="550px">
-      <div class="mdm-form-row">
-        <div class="mdm-form-label required"><em>*</em>字段编码</div>
-        <input v-model="form.fieldCode" class="mdm-input-yellow" placeholder="请输入字段编码" />
-      </div>
-      <div class="mdm-form-row">
-        <div class="mdm-form-label required"><em>*</em>字段名称</div>
-        <input v-model="form.fieldName" class="mdm-input-yellow" placeholder="请输入字段名称" />
-      </div>
-      <div class="mdm-form-row">
-        <div class="mdm-form-label">字段类型</div>
-        <select v-model="form.fieldType" class="mdm-select">
-          <option v-for="opt in FIELD_TYPE_OPTIONS" :key="opt.value" :value="opt.value">
-            {{ opt.label }}
-          </option>
-        </select>
-      </div>
-      <div class="mdm-form-row">
-        <div class="mdm-form-label">长度</div>
-        <input v-model.number="form.length" type="number" class="mdm-input-normal" placeholder="请输入长度" />
-      </div>
-      <div class="mdm-form-row">
-        <div class="mdm-form-label">精度</div>
-        <input v-model.number="form.precision" type="number" class="mdm-input-normal" placeholder="请输入精度" />
-      </div>
-      <div class="mdm-form-row">
-        <div class="mdm-form-label">默认值</div>
-        <input v-model="form.defaultValue" class="mdm-input-normal" placeholder="请输入默认值" />
-      </div>
-      <div class="mdm-form-row">
-        <div class="mdm-form-label">是否必填</div>
-        <div class="mdm-radio-group">
-          <label class="mdm-radio-item">
-            <input type="radio" v-model="form.required" :value="true" />
-            是
-          </label>
-          <label class="mdm-radio-item">
-            <input type="radio" v-model="form.required" :value="false" />
-            否
-          </label>
+    <MdmDialog v-model="dialogVisible" :title="dialogTitle" width="600px">
+      <!-- 基础信息 -->
+      <div class="form-section">
+        <div class="form-section-title">基础信息</div>
+        <div class="mdm-form-row">
+          <div class="mdm-form-label required"><em>*</em>字段编码</div>
+          <input v-model="form.fieldCode" class="mdm-input-yellow" placeholder="请输入字段编码" />
         </div>
-      </div>
-      <div class="mdm-form-row">
-        <div class="mdm-form-label">字段分类</div>
-        <CategoryTreeSelect
-          v-model="form.categoryId"
-          placeholder="请选择分类"
-          :show-search="true"
-        />
-      </div>
-      <div class="mdm-form-row">
-        <div class="mdm-form-label required"><em>*</em>状态</div>
-        <div class="mdm-radio-group">
-          <label class="mdm-radio-item">
-            <input type="radio" v-model="form.status" value="draft" />
-            草稿
-          </label>
-          <label class="mdm-radio-item">
-            <input type="radio" v-model="form.status" value="published" />
-            已发布
-          </label>
-          <label class="mdm-radio-item">
-            <input type="radio" v-model="form.status" value="archived" />
-            已归档
-          </label>
+        <div class="mdm-form-row">
+          <div class="mdm-form-label required"><em>*</em>字段名称</div>
+          <input v-model="form.fieldName" class="mdm-input-yellow" placeholder="请输入字段名称" />
         </div>
-      </div>
-      <div class="mdm-form-row">
-        <div class="mdm-form-label">描述</div>
-        <textarea v-model="form.description" class="mdm-textarea" placeholder="请输入描述"></textarea>
+        <div class="mdm-form-row">
+          <div class="mdm-form-label">字段类型</div>
+          <select v-model="form.fieldType" class="mdm-select" @change="handleFieldTypeChange">
+            <option v-for="opt in FIELD_TYPE_OPTIONS" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+        </div>
+        <!-- 长度：默认显示 -->
+        <div class="mdm-form-row" v-if="showConfig.length.value">
+          <div class="mdm-form-label">长度</div>
+          <input v-model.number="form.length" type="number" class="mdm-input-normal" placeholder="请输入长度" :readonly="form.isEnum" />
+        </div>
+        <!-- 小数位：仅浮点型 -->
+        <div class="mdm-form-row" v-if="showConfig.precision.value">
+          <div class="mdm-form-label">小数位</div>
+          <input v-model.number="form.precision" type="number" class="mdm-input-normal" placeholder="请输入小数位数" />
+        </div>
+        <!-- 关联值域：仅支持的字段类型显示 -->
+        <template v-if="supportEnumTypes.includes(form.fieldType)">
+          <div class="mdm-form-row">
+            <div class="mdm-form-label">关联值域</div>
+            <label class="mdm-checkbox">
+              <input type="checkbox" v-model="form.isEnum" @change="handleIsEnumChange" />
+              <span></span>
+            </label>
+          </div>
+          <div class="mdm-form-row" v-if="form.isEnum">
+            <div class="mdm-form-label required"><em>*</em>值域</div>
+            <select v-model="form.domainId" class="mdm-select" @change="handleDomainChange">
+              <option :value="null">请选择值域</option>
+              <option v-for="domain in filteredDomainList" :key="domain.id" :value="domain.id">
+                {{ domain.domainName }} ({{ domain.domainCode }})
+              </option>
+            </select>
+          </div>
+        </template>
+        <div class="mdm-form-row">
+          <div class="mdm-form-label">字段分类</div>
+          <CategoryTreeSelect
+            v-model="form.categoryId"
+            placeholder="请选择分类"
+            :show-search="true"
+          />
+        </div>
+        <div class="mdm-form-row">
+          <div class="mdm-form-label">状态</div>
+          <select v-model="form.status" class="mdm-select">
+            <option v-for="opt in FIELD_STATUS_OPTIONS" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+        </div>
+        <div class="mdm-form-row" v-if="showConfig.defaultValue.value">
+          <div class="mdm-form-label">默认值</div>
+          <input v-model="form.defaultValue" class="mdm-input-normal" placeholder="请输入默认值" />
+        </div>
+        <div class="mdm-form-row">
+          <div class="mdm-form-label">描述</div>
+          <textarea v-model="form.description" class="mdm-textarea" placeholder="请输入描述"></textarea>
+        </div>
       </div>
 
       <template #footer>
@@ -605,22 +667,16 @@ onMounted(() => {
   border: 1px solid;
 }
 
-.status-draft {
-  background: #f5f5f5;
-  border-color: #d9d9d9;
-  color: #8c8c8c;
+.status-active {
+  background: #f6ffed;
+  border-color: #b7eb8f;
+  color: #52c41a;
 }
 
-.status-published {
+.status-inactive {
   background: #fff5f5;
   border-color: #ffa39e;
   color: #ed2b33;
-}
-
-.status-archived {
-  background: #f5f5f5;
-  border-color: #d9d9d9;
-  color: #8c8c8c;
 }
 
 // 按钮间距
@@ -632,5 +688,45 @@ onMounted(() => {
 .mdm-page-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+// 表单分区样式
+.form-section {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px dashed #e8e8e8;
+
+  &:last-of-type {
+    border-bottom: none;
+    margin-bottom: 0;
+  }
+}
+
+.form-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+  padding-left: 8px;
+  border-left: 3px solid #ed2b33;
+}
+
+// 表单提示样式
+.form-tip {
+  font-size: 12px;
+  color: #888;
+  background: #fafafa;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-top: 8px;
+  line-height: 1.6;
+
+  code {
+    background: #fff;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: Consolas, Monaco, monospace;
+    color: #ed2b33;
+  }
 }
 </style>

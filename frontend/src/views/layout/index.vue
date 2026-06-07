@@ -310,9 +310,7 @@ onMounted(async () => {
         <div class="page-content">
           <RouterView v-slot="{ Component }">
             <transition name="slide-fade" mode="out-in">
-              <keep-alive>
-                <component :is="Component" :key="route.path" />
-              </keep-alive>
+              <component :is="Component" :key="route.fullPath" />
             </transition>
           </RouterView>
         </div>

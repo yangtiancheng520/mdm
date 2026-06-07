@@ -34,19 +34,26 @@ public class FieldStandard {
 
     /**
      * 字段类型
-     * 支持类型：string/number/date/datetime/boolean/text/select/multi_select
+     * string: 字符
+     * integer: 整型
+     * boolean: 布尔
+     * decimal: 浮点型
+     * date: 日期
+     * datetime: 日期时间
+     * time: 时间
+     * text: 长文本
      */
     @Column(name = "field_type", nullable = false, length = 50)
     private String fieldType;
 
     /**
-     * 字段长度（适用于string类型）
+     * 字段长度（适用于string/decimal类型）
      */
     @Column(name = "length")
     private Integer length;
 
     /**
-     * 小数精度（适用于number类型）
+     * 小数精度（适用于decimal类型）
      */
     @Column(name = "`precision`")
     private Integer precision;
@@ -58,29 +65,19 @@ public class FieldStandard {
     private String defaultValue;
 
     /**
-     * 是否必填
+     * 是否关联值域
+     * 0: 否
+     * 1: 是
      */
-    @Column(name = "is_required")
-    private Integer isRequired = 0;
+    @Column(name = "is_enum")
+    private Integer isEnum = 0;
 
     /**
-     * 验证规则（JSON格式）
-     * 可包含正则表达式、范围限制等
+     * 值域ID（关联值域表，用于枚举类型字段）
+     * 当isEnum为1时，关联值域获取选项列表
      */
-    @Column(name = "validation_rule", columnDefinition = "TEXT")
-    private String validationRule;
-
-    /**
-     * 引用ID（关联其他标准或数据源）
-     */
-    @Column(name = "reference_id")
-    private Long referenceId;
-
-    /**
-     * 引用来源
-     */
-    @Column(name = "reference_source", length = 50)
-    private String referenceSource;
+    @Column(name = "domain_id")
+    private Long domainId;
 
     /**
      * 分类ID（关联字段分类表）
@@ -96,12 +93,11 @@ public class FieldStandard {
 
     /**
      * 状态
-     * draft: 草稿
-     * published: 已发布
-     * archived: 已归档
+     * active: 启用
+     * inactive: 停用
      */
     @Column(name = "status", length = 20)
-    private String status = "draft";
+    private String status = "active";
 
     /**
      * 版本号
@@ -147,9 +143,9 @@ public class FieldStandard {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
-        if (status == null) status = "draft";
+        if (status == null) status = "active";
         if (version == null) version = 1;
-        if (isRequired == null) isRequired = 0;
+        if (isEnum == null) isEnum = 0;
     }
 
     /**

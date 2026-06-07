@@ -4,8 +4,10 @@ import com.vueadmin.dto.FieldStandardDto;
 import com.vueadmin.dto.PageResult;
 import com.vueadmin.entity.standard.FieldCategory;
 import com.vueadmin.entity.standard.FieldStandard;
+import com.vueadmin.entity.standard.ValueDomain;
 import com.vueadmin.repository.FieldCategoryRepository;
 import com.vueadmin.repository.FieldStandardRepository;
+import com.vueadmin.repository.ValueDomainRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -28,6 +30,7 @@ public class FieldStandardService {
 
     private final FieldStandardRepository fieldStandardRepository;
     private final FieldCategoryRepository fieldCategoryRepository;
+    private final ValueDomainRepository valueDomainRepository;
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -86,12 +89,12 @@ public class FieldStandardService {
     }
 
     /**
-     * 获取已发布的字段标准列表
+     * 获取已启用的字段标准列表
      *
-     * @return 已发布的字段标准列表
+     * @return 已启用的字段标准列表
      */
-    public List<FieldStandardDto> getPublished() {
-        return fieldStandardRepository.findAllPublished().stream()
+    public List<FieldStandardDto> getActive() {
+        return fieldStandardRepository.findAllActive().stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
     }
@@ -174,10 +177,8 @@ public class FieldStandardService {
         entity.setLength(dto.getLength());
         entity.setPrecision(dto.getPrecision());
         entity.setDefaultValue(dto.getDefaultValue());
-        entity.setIsRequired(dto.getIsRequired());
-        entity.setValidationRule(dto.getValidationRule());
-        entity.setReferenceId(dto.getReferenceId());
-        entity.setReferenceSource(dto.getReferenceSource());
+        entity.setIsEnum(dto.getIsEnum());
+        entity.setDomainId(dto.getDomainId());
         entity.setCategoryId(dto.getCategoryId());
         entity.setCategory(dto.getCategory());
         entity.setDescription(dto.getDescription());
@@ -221,10 +222,8 @@ public class FieldStandardService {
         entity.setLength(dto.getLength());
         entity.setPrecision(dto.getPrecision());
         entity.setDefaultValue(dto.getDefaultValue());
-        entity.setIsRequired(dto.getIsRequired());
-        entity.setValidationRule(dto.getValidationRule());
-        entity.setReferenceId(dto.getReferenceId());
-        entity.setReferenceSource(dto.getReferenceSource());
+        entity.setIsEnum(dto.getIsEnum());
+        entity.setDomainId(dto.getDomainId());
         entity.setCategoryId(dto.getCategoryId());
         entity.setCategory(dto.getCategory());
         entity.setDescription(dto.getDescription());
@@ -244,75 +243,37 @@ public class FieldStandardService {
         FieldStandard entity = fieldStandardRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("字段标准不存在: " + id));
 
-        // 如果已发布，不允许删除
-        if ("published".equals(entity.getStatus())) {
-            throw new RuntimeException("已发布的字段标准不能删除，请先归档");
-        }
-
         fieldStandardRepository.deleteById(id);
     }
 
     /**
-     * 发布字段标准
+     * 启用字段标准
      *
      * @param id 主键ID
      * @return 更新后的字段标准DTO
      */
     @Transactional
-    public FieldStandardDto publish(Long id) {
+    public FieldStandardDto activate(Long id) {
         FieldStandard entity = fieldStandardRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("字段标准不存在: " + id));
 
-        // 检查当前状态
-        if ("published".equals(entity.getStatus())) {
-            throw new RuntimeException("字段标准已处于发布状态");
-        }
-        if ("archived".equals(entity.getStatus())) {
-            throw new RuntimeException("已归档的字段标准不能发布");
-        }
-
-        entity.setStatus("published");
+        entity.setStatus("启用");
         FieldStandard saved = fieldStandardRepository.save(entity);
         return toDto(saved);
     }
 
     /**
-     * 归档字段标准
+     * 停用字段标准
      *
      * @param id 主键ID
      * @return 更新后的字段标准DTO
      */
     @Transactional
-    public FieldStandardDto archive(Long id) {
+    public FieldStandardDto deactivate(Long id) {
         FieldStandard entity = fieldStandardRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("字段标准不存在: " + id));
 
-        // 检查当前状态
-        if ("archived".equals(entity.getStatus())) {
-            throw new RuntimeException("字段标准已处于归档状态");
-        }
-
-        entity.setStatus("archived");
-        FieldStandard saved = fieldStandardRepository.save(entity);
-        return toDto(saved);
-    }
-
-    /**
-     * 取消发布（将已发布的字段标准改回草稿状态）
-     *
-     * @param id 主键ID
-     * @return 更新后的字段标准DTO
-     */
-    @Transactional
-    public FieldStandardDto unpublish(Long id) {
-        FieldStandard entity = fieldStandardRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("字段标准不存在: " + id));
-
-        if (!"published".equals(entity.getStatus())) {
-            throw new RuntimeException("只有已发布的字段标准才能取消发布");
-        }
-
-        entity.setStatus("draft");
+        entity.setStatus("停用");
         FieldStandard saved = fieldStandardRepository.save(entity);
         return toDto(saved);
     }
@@ -344,14 +305,8 @@ public class FieldStandardService {
     @Transactional
     public void batchDelete(List<Long> ids, String updatedBy) {
         for (Long id : ids) {
-            FieldStandard entity = fieldStandardRepository.findById(id)
+            fieldStandardRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("字段标准不存在: " + id));
-
-            // 如果已发布，不允许删除
-            if ("published".equals(entity.getStatus())) {
-                throw new RuntimeException("已发布的字段标准不能删除，请先归档");
-            }
-
             fieldStandardRepository.deleteById(id);
         }
     }
@@ -380,10 +335,8 @@ public class FieldStandardService {
         dto.setLength(entity.getLength());
         dto.setPrecision(entity.getPrecision());
         dto.setDefaultValue(entity.getDefaultValue());
-        dto.setIsRequired(entity.getIsRequired());
-        dto.setValidationRule(entity.getValidationRule());
-        dto.setReferenceId(entity.getReferenceId());
-        dto.setReferenceSource(entity.getReferenceSource());
+        dto.setIsEnum(entity.getIsEnum());
+        dto.setDomainId(entity.getDomainId());
         dto.setCategoryId(entity.getCategoryId());
         dto.setCategory(entity.getCategory());
 
@@ -391,6 +344,15 @@ public class FieldStandardService {
         if (entity.getCategoryId() != null) {
             fieldCategoryRepository.findById(entity.getCategoryId())
                     .ifPresent(category -> dto.setCategoryName(category.getCategoryName()));
+        }
+
+        // 获取值域信息
+        if (entity.getDomainId() != null) {
+            valueDomainRepository.findById(entity.getDomainId())
+                    .ifPresent(domain -> {
+                        dto.setDomainCode(domain.getDomainCode());
+                        dto.setDomainName(domain.getDomainName());
+                    });
         }
 
         dto.setStatus(entity.getStatus());

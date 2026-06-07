@@ -83,7 +83,7 @@
               </template>
               <template v-if="entity.entityType === 'main'">
                 <div
-                  v-for="field in getEntityFields(entity.id)"
+                  v-for="field in getFilteredFields(entity.id)"
                   :key="field.id"
                   class="field-item"
                   :class="{ 'field-added': isFieldAdded(field.id) }"
@@ -102,7 +102,7 @@
                   <span>拖拽字段到右侧子表表格</span>
                 </div>
                 <div
-                  v-for="field in getEntityFields(entity.id)"
+                  v-for="field in getFilteredFields(entity.id)"
                   :key="field.id"
                   class="field-item"
                   :class="{ 'field-added': isFieldAddedToSubTable(field.id) }"
@@ -125,22 +125,43 @@
       <div class="canvas-panel">
         <div class="canvas-toolbar">
           <div class="toolbar-left">
-            <span class="toolbar-label">子表布局：</span>
-            <el-radio-group v-model="subTableLayout" size="small">
-              <el-radio-button value="full-tabs">全Tab布局</el-radio-button>
-              <el-radio-button value="tabs">主表+子表Tab</el-radio-button>
-              <el-radio-button value="collapse">折叠面板</el-radio-button>
-              <el-radio-button value="flat">平铺展示</el-radio-button>
-            </el-radio-group>
+            <el-button type="primary" size="small" @click="handleAddAllFields">
+              一键生成
+            </el-button>
+            <el-button type="danger" size="small" @click="handleClearAll">
+              清空
+            </el-button>
+            <el-divider direction="vertical" />
+            <span class="toolbar-label">表单布局：</span>
+            <el-select v-model="subTableLayout" size="small" style="width: 140px">
+              <el-option value="tabs" label="主表+子表Tab" />
+              <el-option value="full-tabs" label="全Tab布局" />
+              <el-option value="collapse" label="折叠面板" />
+              <el-option value="flat" label="平铺展示" />
+            </el-select>
           </div>
           <el-button-group size="small">
-            <el-button @click="handleZoom('out')" :disabled="zoomLevel <= 50">
-              <el-icon><ZoomOut /></el-icon>
-            </el-button>
+            <el-tooltip content="撤销" placement="bottom">
+              <el-button @click="handleUndo" :disabled="!canUndo">
+                <el-icon><RefreshLeft /></el-icon>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="还原" placement="bottom">
+              <el-button @click="handleRedo" :disabled="!canRedo">
+                <el-icon><RefreshRight /></el-icon>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="缩小" placement="bottom">
+              <el-button @click="handleZoom('out')" :disabled="zoomLevel <= 50">
+                <el-icon><ZoomOut /></el-icon>
+              </el-button>
+            </el-tooltip>
             <el-button disabled>{{ zoomLevel }}%</el-button>
-            <el-button @click="handleZoom('in')" :disabled="zoomLevel >= 150">
-              <el-icon><ZoomIn /></el-icon>
-            </el-button>
+            <el-tooltip content="放大" placement="bottom">
+              <el-button @click="handleZoom('in')" :disabled="zoomLevel >= 150">
+                <el-icon><ZoomIn /></el-icon>
+              </el-button>
+            </el-tooltip>
           </el-button-group>
         </div>
         <div class="canvas-wrapper">
@@ -198,11 +219,25 @@
                               {{ comp.fieldName }}
                             </div>
                             <div class="component-control">
-                              <el-input v-if="comp.fieldType === 'string'" disabled :placeholder="comp.placeholder || '请输入'" size="small" />
-                              <el-input-number v-else-if="comp.fieldType === 'number'" disabled size="small" style="width: 100%" />
-                              <el-date-picker v-else-if="comp.fieldType === 'date'" disabled size="small" style="width: 100%" />
-                              <el-select v-else-if="comp.fieldType === 'select'" disabled size="small" style="width: 100%" />
-                              <el-input v-else disabled size="small" />
+                              <!-- 根据 componentType 渲染控件 -->
+                              <el-input v-if="getComponentType(comp) === 'input'" disabled :placeholder="comp.placeholder || '请输入'" size="small" />
+                              <el-input v-else-if="getComponentType(comp) === 'textarea'" disabled :placeholder="comp.placeholder || '请输入'" size="small" type="textarea" :rows="2" />
+                              <el-input v-else-if="getComponentType(comp) === 'password'" disabled :placeholder="comp.placeholder || '请输入'" size="small" show-password />
+                              <el-input-number v-else-if="getComponentType(comp) === 'inputNumber'" disabled size="small" style="width: 100%" controls-position="right" />
+                              <el-slider v-else-if="getComponentType(comp) === 'slider'" disabled size="small" style="width: 100%" />
+                              <el-rate v-else-if="getComponentType(comp) === 'rate'" disabled size="small" />
+                              <el-date-picker v-else-if="getComponentType(comp) === 'datePicker'" disabled size="small" style="width: 100%" placeholder="请选择日期" />
+                              <el-date-picker v-else-if="getComponentType(comp) === 'dateTimePicker'" disabled size="small" style="width: 100%" type="datetime" placeholder="请选择日期时间" />
+                              <el-time-picker v-else-if="getComponentType(comp) === 'timePicker'" disabled size="small" style="width: 100%" placeholder="请选择时间" />
+                              <el-switch v-else-if="getComponentType(comp) === 'switch'" disabled size="small" />
+                              <el-select v-else-if="getComponentType(comp) === 'select'" disabled size="small" style="width: 100%" placeholder="请选择" />
+                              <el-radio-group v-else-if="getComponentType(comp) === 'radio'" disabled size="small">
+                                <el-radio v-for="opt in getDomainOptions(comp.domainId)" :key="opt.value" :value="opt.value">{{ opt.label }}</el-radio>
+                              </el-radio-group>
+                              <el-checkbox-group v-else-if="getComponentType(comp) === 'checkbox'" disabled size="small">
+                                <el-checkbox v-for="opt in getDomainOptions(comp.domainId)" :key="opt.value" :value="opt.value">{{ opt.label }}</el-checkbox>
+                              </el-checkbox-group>
+                              <el-input v-else disabled :placeholder="comp.placeholder || '请输入'" size="small" />
                             </div>
                             <div class="component-actions">
                               <el-button type="primary" link size="small" @click.stop="handleRemoveComponent(comp)">
@@ -229,7 +264,9 @@
                           v-for="field in subTables[activeFullTab].fields"
                           :key="field._uid || field.id"
                           class="grid-cell"
+                          :class="{ selected: selectedSubField?._uid === field._uid && selectedSubTableIndex === activeFullTab }"
                           draggable="true"
+                          @click.stop="handleSelectSubField(activeFullTab, field)"
                           @dragstart="handleGridFieldDragStart($event, activeFullTab, field)"
                           @dragover.prevent
                           @drop="handleGridFieldDrop($event, activeFullTab, field)"
@@ -244,7 +281,19 @@
                       <div class="grid-body" v-if="subTables[activeFullTab].fields.length > 0">
                         <div class="grid-row">
                           <div class="grid-cell" v-for="field in subTables[activeFullTab].fields" :key="field._uid || field.id">
-                            <el-input disabled size="small" />
+                            <el-input v-if="getComponentType(field) === 'input'" disabled size="small" />
+                            <el-input-number v-else-if="getComponentType(field) === 'inputNumber'" disabled size="small" style="width: 100%" controls-position="right" />
+                            <el-date-picker v-else-if="getComponentType(field) === 'datePicker'" disabled size="small" style="width: 100%" type="date" />
+                            <el-time-picker v-else-if="getComponentType(field) === 'timePicker'" disabled size="small" style="width: 100%" />
+                            <el-switch v-else-if="getComponentType(field) === 'switch'" disabled size="small" />
+                            <el-select v-else-if="getComponentType(field) === 'select'" disabled size="small" style="width: 100%" />
+                            <el-radio-group v-else-if="getComponentType(field) === 'radio'" disabled size="small">
+                              <el-radio v-for="opt in getDomainOptions(field.domainId)" :key="opt.value" :value="opt.value">{{ opt.label }}</el-radio>
+                            </el-radio-group>
+                            <el-checkbox-group v-else-if="getComponentType(field) === 'checkbox'" disabled size="small">
+                              <el-checkbox v-for="opt in getDomainOptions(field.domainId)" :key="opt.value" :value="opt.value">{{ opt.label }}</el-checkbox>
+                            </el-checkbox-group>
+                            <el-input v-else disabled size="small" />
                           </div>
                           <div class="grid-cell action-cell">
                             <el-button link type="danger" size="small">删除</el-button>
@@ -285,11 +334,24 @@
                           {{ comp.fieldName }}
                         </div>
                         <div class="component-control">
-                          <el-input v-if="comp.fieldType === 'string'" disabled :placeholder="comp.placeholder || '请输入'" size="small" />
-                          <el-input-number v-else-if="comp.fieldType === 'number'" disabled size="small" style="width: 100%" />
-                          <el-date-picker v-else-if="comp.fieldType === 'date'" disabled size="small" style="width: 100%" />
-                          <el-select v-else-if="comp.fieldType === 'select'" disabled size="small" style="width: 100%" />
-                          <el-input v-else disabled size="small" />
+                          <el-input v-if="getComponentType(comp) === 'input'" disabled :placeholder="comp.placeholder || '请输入'" size="small" />
+                          <el-input v-else-if="getComponentType(comp) === 'textarea'" disabled :placeholder="comp.placeholder || '请输入'" size="small" type="textarea" :rows="2" />
+                          <el-input v-else-if="getComponentType(comp) === 'password'" disabled :placeholder="comp.placeholder || '请输入'" size="small" show-password />
+                          <el-input-number v-else-if="getComponentType(comp) === 'inputNumber'" disabled size="small" style="width: 100%" controls-position="right" />
+                          <el-slider v-else-if="getComponentType(comp) === 'slider'" disabled size="small" style="width: 100%" />
+                          <el-rate v-else-if="getComponentType(comp) === 'rate'" disabled size="small" />
+                          <el-date-picker v-else-if="getComponentType(comp) === 'datePicker'" disabled size="small" style="width: 100%" placeholder="请选择日期" />
+                          <el-date-picker v-else-if="getComponentType(comp) === 'dateTimePicker'" disabled size="small" style="width: 100%" type="datetime" placeholder="请选择日期时间" />
+                          <el-time-picker v-else-if="getComponentType(comp) === 'timePicker'" disabled size="small" style="width: 100%" placeholder="请选择时间" />
+                          <el-switch v-else-if="getComponentType(comp) === 'switch'" disabled size="small" />
+                          <el-select v-else-if="getComponentType(comp) === 'select'" disabled size="small" style="width: 100%" placeholder="请选择" />
+                          <el-radio-group v-else-if="getComponentType(comp) === 'radio'" disabled size="small">
+                            <el-radio v-for="opt in getDomainOptions(comp.domainId)" :key="opt.value" :value="opt.value">{{ opt.label }}</el-radio>
+                          </el-radio-group>
+                          <el-checkbox-group v-else-if="getComponentType(comp) === 'checkbox'" disabled size="small">
+                            <el-checkbox v-for="opt in getDomainOptions(comp.domainId)" :key="opt.value" :value="opt.value">{{ opt.label }}</el-checkbox>
+                          </el-checkbox-group>
+                          <el-input v-else disabled :placeholder="comp.placeholder || '请输入'" size="small" />
                         </div>
                         <div class="component-actions">
                           <el-button type="primary" link size="small" @click.stop="handleRemoveComponent(comp)">
@@ -334,7 +396,9 @@
                             v-for="field in subTables[activeSubTableTab].fields"
                             :key="field._uid || field.id"
                             class="grid-cell"
+                            :class="{ selected: selectedSubField?._uid === field._uid && selectedSubTableIndex === activeSubTableTab }"
                             draggable="true"
+                            @click.stop="handleSelectSubField(activeSubTableTab, field)"
                             @dragstart="handleGridFieldDragStart($event, activeSubTableTab, field)"
                             @dragover.prevent
                             @drop="handleGridFieldDrop($event, activeSubTableTab, field)"
@@ -349,7 +413,19 @@
                         <div class="grid-body" v-if="subTables[activeSubTableTab].fields.length > 0">
                           <div class="grid-row">
                             <div class="grid-cell" v-for="field in subTables[activeSubTableTab].fields" :key="field._uid || field.id">
-                              <el-input disabled size="small" />
+                              <el-input v-if="getComponentType(field) === 'input'" disabled size="small" />
+                              <el-input-number v-else-if="getComponentType(field) === 'inputNumber'" disabled size="small" style="width: 100%" controls-position="right" />
+                              <el-date-picker v-else-if="getComponentType(field) === 'datePicker'" disabled size="small" style="width: 100%" type="date" />
+                              <el-time-picker v-else-if="getComponentType(field) === 'timePicker'" disabled size="small" style="width: 100%" />
+                              <el-switch v-else-if="getComponentType(field) === 'switch'" disabled size="small" />
+                              <el-select v-else-if="getComponentType(field) === 'select'" disabled size="small" style="width: 100%" />
+                              <el-radio-group v-else-if="getComponentType(field) === 'radio'" disabled size="small">
+                                <el-radio v-for="opt in getDomainOptions(field.domainId)" :key="opt.value" :value="opt.value">{{ opt.label }}</el-radio>
+                              </el-radio-group>
+                              <el-checkbox-group v-else-if="getComponentType(field) === 'checkbox'" disabled size="small">
+                                <el-checkbox v-for="opt in getDomainOptions(field.domainId)" :key="opt.value" :value="opt.value">{{ opt.label }}</el-checkbox>
+                              </el-checkbox-group>
+                              <el-input v-else disabled size="small" />
                             </div>
                             <div class="grid-cell action-cell">
                               <el-button link type="danger" size="small">删除</el-button>
@@ -383,7 +459,9 @@
                               v-for="field in sub.fields"
                               :key="field._uid || field.id"
                               class="grid-cell"
+                              :class="{ selected: selectedSubField?._uid === field._uid && selectedSubTableIndex === index }"
                               draggable="true"
+                              @click.stop="handleSelectSubField(index, field)"
                               @dragstart="handleGridFieldDragStart($event, index, field)"
                               @dragover.prevent
                               @drop="handleGridFieldDrop($event, index, field)"
@@ -398,7 +476,19 @@
                           <div class="grid-body" v-if="sub.fields.length > 0">
                             <div class="grid-row">
                               <div class="grid-cell" v-for="field in sub.fields" :key="field._uid || field.id">
-                                <el-input disabled size="small" />
+                                <el-input v-if="getComponentType(field) === 'input'" disabled size="small" />
+                                <el-input-number v-else-if="getComponentType(field) === 'inputNumber'" disabled size="small" style="width: 100%" controls-position="right" />
+                                <el-date-picker v-else-if="getComponentType(field) === 'datePicker'" disabled size="small" style="width: 100%" type="date" />
+                                <el-time-picker v-else-if="getComponentType(field) === 'timePicker'" disabled size="small" style="width: 100%" />
+                                <el-switch v-else-if="getComponentType(field) === 'switch'" disabled size="small" />
+                                <el-select v-else-if="getComponentType(field) === 'select'" disabled size="small" style="width: 100%" />
+                                <el-radio-group v-else-if="getComponentType(field) === 'radio'" disabled size="small">
+                                  <el-radio v-for="opt in getDomainOptions(field.domainId)" :key="opt.value" :value="opt.value">{{ opt.label }}</el-radio>
+                                </el-radio-group>
+                                <el-checkbox-group v-else-if="getComponentType(field) === 'checkbox'" disabled size="small">
+                                  <el-checkbox v-for="opt in getDomainOptions(field.domainId)" :key="opt.value" :value="opt.value">{{ opt.label }}</el-checkbox>
+                                </el-checkbox-group>
+                                <el-input v-else disabled size="small" />
                               </div>
                               <div class="grid-cell action-cell">
                                 <el-button link type="danger" size="small">删除</el-button>
@@ -432,7 +522,9 @@
                             v-for="field in sub.fields"
                             :key="field._uid || field.id"
                             class="grid-cell"
+                            :class="{ selected: selectedSubField?._uid === field._uid && selectedSubTableIndex === index }"
                             draggable="true"
+                            @click.stop="handleSelectSubField(index, field)"
                             @dragstart="handleGridFieldDragStart($event, index, field)"
                             @dragover.prevent
                             @drop="handleGridFieldDrop($event, index, field)"
@@ -447,7 +539,19 @@
                         <div class="grid-body" v-if="sub.fields.length > 0">
                           <div class="grid-row">
                             <div class="grid-cell" v-for="field in sub.fields" :key="field._uid || field.id">
-                              <el-input disabled size="small" />
+                              <el-input v-if="getComponentType(field) === 'input'" disabled size="small" />
+                              <el-input-number v-else-if="getComponentType(field) === 'inputNumber'" disabled size="small" style="width: 100%" controls-position="right" />
+                              <el-date-picker v-else-if="getComponentType(field) === 'datePicker'" disabled size="small" style="width: 100%" type="date" />
+                              <el-time-picker v-else-if="getComponentType(field) === 'timePicker'" disabled size="small" style="width: 100%" />
+                              <el-switch v-else-if="getComponentType(field) === 'switch'" disabled size="small" />
+                              <el-select v-else-if="getComponentType(field) === 'select'" disabled size="small" style="width: 100%" />
+                              <el-radio-group v-else-if="getComponentType(field) === 'radio'" disabled size="small">
+                                <el-radio v-for="opt in getDomainOptions(field.domainId)" :key="opt.value" :value="opt.value">{{ opt.label }}</el-radio>
+                              </el-radio-group>
+                              <el-checkbox-group v-else-if="getComponentType(field) === 'checkbox'" disabled size="small">
+                                <el-checkbox v-for="opt in getDomainOptions(field.domainId)" :key="opt.value" :value="opt.value">{{ opt.label }}</el-checkbox>
+                              </el-checkbox-group>
+                              <el-input v-else disabled size="small" />
                             </div>
                             <div class="grid-cell action-cell">
                               <el-button link type="danger" size="small">删除</el-button>
@@ -482,6 +586,7 @@
           <span v-if="!rightPanelCollapsed">属性配置</span>
         </div>
         <div class="panel-body" v-show="!rightPanelCollapsed">
+          <!-- 主表字段属性 -->
           <template v-if="selectedComponent">
             <el-form :model="selectedComponent" label-width="80px" size="small">
               <el-form-item label="字段名称">
@@ -493,6 +598,25 @@
               <el-form-item label="字段类型">
                 <el-input v-model="selectedComponent.fieldType" disabled />
               </el-form-item>
+              <el-divider>控件设置</el-divider>
+              <el-form-item label="控件类型">
+                <el-select v-model="selectedComponent.componentType" style="width: 100%" @change="onComponentTypeChange(selectedComponent)">
+                  <el-option v-for="type in getComponentTypeOptions(selectedComponent.domainId)" :key="type.value" :label="type.label" :value="type.value" />
+                </el-select>
+              </el-form-item>
+              <!-- 值域显示 -->
+              <template v-if="selectedComponent.domainId && domainMap.get(selectedComponent.domainId)">
+                <el-form-item label="值域">
+                  <el-tag type="info">{{ domainMap.get(selectedComponent.domainId)?.domainName }}</el-tag>
+                </el-form-item>
+                <el-form-item label="值域选项">
+                  <div class="domain-options">
+                    <el-tag v-for="opt in domainMap.get(selectedComponent.domainId)?.options" :key="opt.value" size="small" class="domain-option-tag">
+                      {{ opt.label }}
+                    </el-tag>
+                  </div>
+                </el-form-item>
+              </template>
               <el-divider>显示设置</el-divider>
               <el-form-item label="是否必填">
                 <el-switch v-model="selectedComponent.isRequired" />
@@ -521,6 +645,53 @@
               </el-form-item>
             </el-form>
           </template>
+          <!-- 子表字段属性 -->
+          <template v-else-if="selectedSubField">
+            <el-form :model="selectedSubField" label-width="80px" size="small">
+              <el-form-item label="字段名称">
+                <el-input v-model="selectedSubField.fieldName" />
+              </el-form-item>
+              <el-form-item label="字段编码">
+                <el-input v-model="selectedSubField.fieldCode" disabled />
+              </el-form-item>
+              <el-form-item label="字段类型">
+                <el-input v-model="selectedSubField.fieldType" disabled />
+              </el-form-item>
+              <el-divider>控件设置</el-divider>
+              <el-form-item label="控件类型">
+                <el-select v-model="selectedSubField.componentType" style="width: 100%">
+                  <el-option v-for="type in getComponentTypeOptions(selectedSubField.domainId)" :key="type.value" :label="type.label" :value="type.value" />
+                </el-select>
+              </el-form-item>
+              <!-- 值域显示 -->
+              <template v-if="selectedSubField.domainId && domainMap.get(selectedSubField.domainId)">
+                <el-form-item label="值域">
+                  <el-tag type="info">{{ domainMap.get(selectedSubField.domainId)?.domainName }}</el-tag>
+                </el-form-item>
+                <el-form-item label="值域选项">
+                  <div class="domain-options">
+                    <el-tag v-for="opt in domainMap.get(selectedSubField.domainId)?.options" :key="opt.value" size="small" class="domain-option-tag">
+                      {{ opt.label }}
+                    </el-tag>
+                  </div>
+                </el-form-item>
+              </template>
+              <el-divider>显示设置</el-divider>
+              <el-form-item label="是否必填">
+                <el-switch v-model="selectedSubField.isRequired" />
+              </el-form-item>
+              <el-form-item label="是否只读">
+                <el-switch v-model="selectedSubField.isReadonly" />
+              </el-form-item>
+              <el-divider>其他设置</el-divider>
+              <el-form-item label="占位提示">
+                <el-input v-model="selectedSubField.placeholder" />
+              </el-form-item>
+              <el-form-item label="默认值">
+                <el-input v-model="selectedSubField.defaultValue" />
+              </el-form-item>
+            </el-form>
+          </template>
           <el-empty v-else description="请选择组件" />
         </div>
       </div>
@@ -543,19 +714,212 @@
           </div>
         </div>
         <div class="preview-body">
-          <el-form label-width="100px">
-            <el-row :gutter="20">
-              <el-col :span="6" v-for="comp in components" :key="comp.id">
-                <el-form-item :label="comp.fieldName" :required="comp.isRequired">
-                  <el-input v-if="comp.fieldType === 'string'" :placeholder="comp.placeholder" :readonly="comp.isReadonly" />
-                  <el-input-number v-else-if="comp.fieldType === 'number'" style="width: 100%" />
-                  <el-date-picker v-else-if="comp.fieldType === 'date'" style="width: 100%" />
-                  <el-select v-else-if="comp.fieldType === 'select'" style="width: 100%" />
-                  <el-input v-else />
-                </el-form-item>
-              </el-col>
-            </el-row>
-          </el-form>
+          <!-- 全Tab布局预览 -->
+          <template v-if="subTableLayout === 'full-tabs'">
+            <el-tabs v-model="previewActiveTab">
+              <el-tab-pane label="主表信息" name="main">
+                <el-form label-width="120px" :model="previewFormData">
+                  <el-row :gutter="20">
+                    <el-col :span="6" v-for="comp in components" :key="comp.id">
+                      <el-form-item :label="comp.fieldName" :required="comp.isRequired">
+                        <el-input v-if="getComponentType(comp) === 'input'" v-model="previewFormData[comp.fieldCode]" :placeholder="comp.placeholder || '请输入'" />
+                        <el-input v-else-if="getComponentType(comp) === 'textarea'" v-model="previewFormData[comp.fieldCode]" type="textarea" :rows="2" :placeholder="comp.placeholder || '请输入'" />
+                        <el-input v-else-if="getComponentType(comp) === 'password'" v-model="previewFormData[comp.fieldCode]" show-password :placeholder="comp.placeholder || '请输入'" />
+                        <el-input-number v-else-if="getComponentType(comp) === 'inputNumber'" v-model="previewFormData[comp.fieldCode]" style="width: 100%" controls-position="right" />
+                        <el-slider v-else-if="getComponentType(comp) === 'slider'" v-model="previewFormData[comp.fieldCode]" style="width: 100%" />
+                        <el-rate v-else-if="getComponentType(comp) === 'rate'" v-model="previewFormData[comp.fieldCode]" />
+                        <el-date-picker v-else-if="getComponentType(comp) === 'datePicker'" v-model="previewFormData[comp.fieldCode]" style="width: 100%" placeholder="请选择日期" />
+                        <el-date-picker v-else-if="getComponentType(comp) === 'dateTimePicker'" v-model="previewFormData[comp.fieldCode]" style="width: 100%" type="datetime" placeholder="请选择日期时间" />
+                        <el-time-picker v-else-if="getComponentType(comp) === 'timePicker'" v-model="previewFormData[comp.fieldCode]" style="width: 100%" placeholder="请选择时间" />
+                        <el-switch v-else-if="getComponentType(comp) === 'switch'" v-model="previewFormData[comp.fieldCode]" />
+                        <el-select v-else-if="getComponentType(comp) === 'select'" v-model="previewFormData[comp.fieldCode]" style="width: 100%" placeholder="请选择">
+                          <el-option v-for="opt in getDomainOptions(comp.domainId)" :key="opt.value" :label="opt.label" :value="opt.value" />
+                        </el-select>
+                        <el-radio-group v-else-if="getComponentType(comp) === 'radio'" v-model="previewFormData[comp.fieldCode]">
+                          <el-radio v-for="opt in getDomainOptions(comp.domainId)" :key="opt.value" :value="opt.value">{{ opt.label }}</el-radio>
+                        </el-radio-group>
+                        <el-checkbox-group v-else-if="getComponentType(comp) === 'checkbox'" v-model="previewFormData[comp.fieldCode]">
+                          <el-checkbox v-for="opt in getDomainOptions(comp.domainId)" :key="opt.value" :value="opt.value">{{ opt.label }}</el-checkbox>
+                        </el-checkbox-group>
+                        <el-input v-else v-model="previewFormData[comp.fieldCode]" :placeholder="comp.placeholder || '请输入'" />
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+                </el-form>
+              </el-tab-pane>
+              <el-tab-pane v-for="sub in subTables" :key="sub.entityId" :label="sub.entityName" :name="'sub-' + sub.entityId">
+                <el-table :data="getSubTablePreviewData(sub.entityCode)" border>
+                  <el-table-column v-for="field in sub.fields" :key="field.id" :prop="field.fieldCode" :label="field.fieldName" min-width="150">
+                    <template #default="{ row, $index }">
+                      <el-input v-if="getComponentType(field) === 'input'" v-model="row[field.fieldCode]" size="small" placeholder="请输入" />
+                      <el-input v-else-if="getComponentType(field) === 'textarea'" v-model="row[field.fieldCode]" size="small" type="textarea" :rows="1" placeholder="请输入" />
+                      <el-input-number v-else-if="getComponentType(field) === 'inputNumber'" v-model="row[field.fieldCode]" size="small" style="width: 100%" controls-position="right" />
+                      <el-date-picker v-else-if="getComponentType(field) === 'datePicker'" v-model="row[field.fieldCode]" size="small" style="width: 100%" type="date" placeholder="请选择" />
+                      <el-time-picker v-else-if="getComponentType(field) === 'timePicker'" v-model="row[field.fieldCode]" size="small" style="width: 100%" placeholder="请选择" />
+                      <el-switch v-else-if="getComponentType(field) === 'switch'" v-model="row[field.fieldCode]" size="small" />
+                      <el-select v-else-if="getComponentType(field) === 'select'" v-model="row[field.fieldCode]" size="small" style="width: 100%" placeholder="请选择">
+                        <el-option v-for="opt in getDomainOptions(field.domainId)" :key="opt.value" :label="opt.label" :value="opt.value" />
+                      </el-select>
+                      <el-input v-else v-model="row[field.fieldCode]" size="small" placeholder="请输入" />
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="100" fixed="right">
+                    <template #default="{ $index }">
+                      <el-button type="danger" link size="small" @click="removePreviewSubTableRow(sub.entityCode, $index)">删除</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <div style="margin-top: 10px">
+                  <el-button type="primary" size="small" @click="addPreviewSubTableRow(sub.entityCode)">添加行</el-button>
+                </div>
+              </el-tab-pane>
+            </el-tabs>
+          </template>
+
+          <!-- 其他布局预览 -->
+          <template v-else>
+            <!-- 主表信息 -->
+            <div v-if="components.length > 0" class="preview-section">
+              <div class="preview-section-title">主表信息</div>
+              <el-form label-width="120px" :model="previewFormData">
+                <el-row :gutter="20">
+                  <el-col :span="6" v-for="comp in components" :key="comp.id">
+                    <el-form-item :label="comp.fieldName" :required="comp.isRequired">
+                      <el-input v-if="getComponentType(comp) === 'input'" v-model="previewFormData[comp.fieldCode]" :placeholder="comp.placeholder || '请输入'" />
+                      <el-input v-else-if="getComponentType(comp) === 'textarea'" v-model="previewFormData[comp.fieldCode]" type="textarea" :rows="2" :placeholder="comp.placeholder || '请输入'" />
+                      <el-input v-else-if="getComponentType(comp) === 'password'" v-model="previewFormData[comp.fieldCode]" show-password :placeholder="comp.placeholder || '请输入'" />
+                      <el-input-number v-else-if="getComponentType(comp) === 'inputNumber'" v-model="previewFormData[comp.fieldCode]" style="width: 100%" controls-position="right" />
+                      <el-slider v-else-if="getComponentType(comp) === 'slider'" v-model="previewFormData[comp.fieldCode]" style="width: 100%" />
+                      <el-rate v-else-if="getComponentType(comp) === 'rate'" v-model="previewFormData[comp.fieldCode]" />
+                      <el-date-picker v-else-if="getComponentType(comp) === 'datePicker'" v-model="previewFormData[comp.fieldCode]" style="width: 100%" placeholder="请选择日期" />
+                      <el-date-picker v-else-if="getComponentType(comp) === 'dateTimePicker'" v-model="previewFormData[comp.fieldCode]" style="width: 100%" type="datetime" placeholder="请选择日期时间" />
+                      <el-time-picker v-else-if="getComponentType(comp) === 'timePicker'" v-model="previewFormData[comp.fieldCode]" style="width: 100%" placeholder="请选择时间" />
+                      <el-switch v-else-if="getComponentType(comp) === 'switch'" v-model="previewFormData[comp.fieldCode]" />
+                      <el-select v-else-if="getComponentType(comp) === 'select'" v-model="previewFormData[comp.fieldCode]" style="width: 100%" placeholder="请选择">
+                        <el-option v-for="opt in getDomainOptions(comp.domainId)" :key="opt.value" :label="opt.label" :value="opt.value" />
+                      </el-select>
+                      <el-radio-group v-else-if="getComponentType(comp) === 'radio'" v-model="previewFormData[comp.fieldCode]">
+                        <el-radio v-for="opt in getDomainOptions(comp.domainId)" :key="opt.value" :value="opt.value">{{ opt.label }}</el-radio>
+                      </el-radio-group>
+                      <el-checkbox-group v-else-if="getComponentType(comp) === 'checkbox'" v-model="previewFormData[comp.fieldCode]">
+                        <el-checkbox v-for="opt in getDomainOptions(comp.domainId)" :key="opt.value" :value="opt.value">{{ opt.label }}</el-checkbox>
+                      </el-checkbox-group>
+                      <el-input v-else v-model="previewFormData[comp.fieldCode]" :placeholder="comp.placeholder || '请输入'" />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+              </el-form>
+            </div>
+
+            <!-- 子表信息 -->
+            <div v-if="subTables.length > 0" class="preview-section">
+              <div class="preview-section-title">子表信息</div>
+
+              <!-- Tab布局 -->
+              <template v-if="subTableLayout === 'tabs'">
+                <el-tabs v-model="previewActiveTab">
+                  <el-tab-pane v-for="sub in subTables" :key="sub.entityId" :label="sub.entityName" :name="'sub-' + sub.entityId">
+                    <el-table :data="getSubTablePreviewData(sub.entityCode)" border>
+                      <el-table-column v-for="field in sub.fields" :key="field.id" :prop="field.fieldCode" :label="field.fieldName" min-width="150">
+                        <template #default="{ row }">
+                          <el-input v-if="getComponentType(field) === 'input'" v-model="row[field.fieldCode]" size="small" placeholder="请输入" />
+                          <el-input v-else-if="getComponentType(field) === 'textarea'" v-model="row[field.fieldCode]" size="small" type="textarea" :rows="1" placeholder="请输入" />
+                          <el-input-number v-else-if="getComponentType(field) === 'inputNumber'" v-model="row[field.fieldCode]" size="small" style="width: 100%" controls-position="right" />
+                          <el-date-picker v-else-if="getComponentType(field) === 'datePicker'" v-model="row[field.fieldCode]" size="small" style="width: 100%" type="date" placeholder="请选择" />
+                          <el-time-picker v-else-if="getComponentType(field) === 'timePicker'" v-model="row[field.fieldCode]" size="small" style="width: 100%" placeholder="请选择" />
+                          <el-switch v-else-if="getComponentType(field) === 'switch'" v-model="row[field.fieldCode]" size="small" />
+                          <el-select v-else-if="getComponentType(field) === 'select'" v-model="row[field.fieldCode]" size="small" style="width: 100%" placeholder="请选择">
+                            <el-option v-for="opt in getDomainOptions(field.domainId)" :key="opt.value" :label="opt.label" :value="opt.value" />
+                          </el-select>
+                          <el-input v-else v-model="row[field.fieldCode]" size="small" placeholder="请输入" />
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="操作" width="100" fixed="right">
+                        <template #default="{ $index }">
+                          <el-button type="danger" link size="small" @click="removePreviewSubTableRow(sub.entityCode, $index)">删除</el-button>
+                        </template>
+                      </el-table-column>
+                    </el-table>
+                    <div style="margin-top: 10px">
+                      <el-button type="primary" size="small" @click="addPreviewSubTableRow(sub.entityCode)">添加行</el-button>
+                    </div>
+                  </el-tab-pane>
+                </el-tabs>
+              </template>
+
+              <!-- 折叠面板布局 -->
+              <template v-else-if="subTableLayout === 'collapse'">
+                <el-collapse>
+                  <el-collapse-item v-for="sub in subTables" :key="sub.entityId" :title="sub.entityName" :name="sub.entityId">
+                    <el-table :data="getSubTablePreviewData(sub.entityCode)" border>
+                      <el-table-column v-for="field in sub.fields" :key="field.id" :prop="field.fieldCode" :label="field.fieldName" min-width="150">
+                        <template #default="{ row }">
+                          <el-input v-if="getComponentType(field) === 'input'" v-model="row[field.fieldCode]" size="small" placeholder="请输入" />
+                          <el-input v-else-if="getComponentType(field) === 'textarea'" v-model="row[field.fieldCode]" size="small" type="textarea" :rows="1" placeholder="请输入" />
+                          <el-input-number v-else-if="getComponentType(field) === 'inputNumber'" v-model="row[field.fieldCode]" size="small" style="width: 100%" controls-position="right" />
+                          <el-date-picker v-else-if="getComponentType(field) === 'datePicker'" v-model="row[field.fieldCode]" size="small" style="width: 100%" type="date" placeholder="请选择" />
+                          <el-time-picker v-else-if="getComponentType(field) === 'timePicker'" v-model="row[field.fieldCode]" size="small" style="width: 100%" placeholder="请选择" />
+                          <el-switch v-else-if="getComponentType(field) === 'switch'" v-model="row[field.fieldCode]" size="small" />
+                          <el-select v-else-if="getComponentType(field) === 'select'" v-model="row[field.fieldCode]" size="small" style="width: 100%" placeholder="请选择">
+                            <el-option v-for="opt in getDomainOptions(field.domainId)" :key="opt.value" :label="opt.label" :value="opt.value" />
+                          </el-select>
+                          <el-input v-else v-model="row[field.fieldCode]" size="small" placeholder="请输入" />
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="操作" width="100" fixed="right">
+                        <template #default="{ $index }">
+                          <el-button type="danger" link size="small" @click="removePreviewSubTableRow(sub.entityCode, $index)">删除</el-button>
+                        </template>
+                      </el-table-column>
+                    </el-table>
+                    <div style="margin-top: 10px">
+                      <el-button type="primary" size="small" @click="addPreviewSubTableRow(sub.entityCode)">添加行</el-button>
+                    </div>
+                  </el-collapse-item>
+                </el-collapse>
+              </template>
+
+              <!-- 平铺布局 -->
+              <template v-else-if="subTableLayout === 'flat'">
+                <div v-for="sub in subTables" :key="sub.entityId" class="preview-subtable">
+                  <div class="preview-subtable-title">{{ sub.entityName }}</div>
+                  <el-table :data="getSubTablePreviewData(sub.entityCode)" border>
+                    <el-table-column v-for="field in sub.fields" :key="field.id" :prop="field.fieldCode" :label="field.fieldName" min-width="150">
+                      <template #default="{ row }">
+                        <el-input v-if="getComponentType(field) === 'input'" v-model="row[field.fieldCode]" size="small" placeholder="请输入" />
+                        <el-input v-else-if="getComponentType(field) === 'textarea'" v-model="row[field.fieldCode]" size="small" type="textarea" :rows="1" placeholder="请输入" />
+                        <el-input-number v-else-if="getComponentType(field) === 'inputNumber'" v-model="row[field.fieldCode]" size="small" style="width: 100%" controls-position="right" />
+                        <el-date-picker v-else-if="getComponentType(field) === 'datePicker'" v-model="row[field.fieldCode]" size="small" style="width: 100%" type="date" placeholder="请选择" />
+                        <el-time-picker v-else-if="getComponentType(field) === 'timePicker'" v-model="row[field.fieldCode]" size="small" style="width: 100%" placeholder="请选择" />
+                        <el-switch v-else-if="getComponentType(field) === 'switch'" v-model="row[field.fieldCode]" size="small" />
+                        <el-select v-else-if="getComponentType(field) === 'select'" v-model="row[field.fieldCode]" size="small" style="width: 100%" placeholder="请选择">
+                          <el-option v-for="opt in getDomainOptions(field.domainId)" :key="opt.value" :label="opt.label" :value="opt.value" />
+                        </el-select>
+                        <el-input v-else v-model="row[field.fieldCode]" size="small" placeholder="请输入" />
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="操作" width="100" fixed="right">
+                      <template #default="{ $index }">
+                        <el-button type="danger" link size="small" @click="removePreviewSubTableRow(sub.entityCode, $index)">删除</el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                  <div style="margin-top: 10px">
+                    <el-button type="primary" size="small" @click="addPreviewSubTableRow(sub.entityCode)">添加行</el-button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
+
+          <!-- 空状态 -->
+          <el-empty v-if="components.length === 0 && subTables.length === 0" description="暂无表单内容" />
+        </div>
+        <!-- 底部按钮 -->
+        <div class="preview-footer">
+          <el-button @click="previewVisible = false">取消</el-button>
+          <el-button @click="handleAutoFill">模拟填写</el-button>
+          <el-button type="primary" @click="handlePreviewSave">模拟保存</el-button>
         </div>
       </div>
     </div>
@@ -565,11 +929,11 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, View, Check, Search, Document, Files,
   ZoomOut, ZoomIn, Delete, Upload, DArrowLeft, DArrowRight, Close, InfoFilled, Rank,
-  ArrowDown, List, Plus
+  ArrowDown, List, Plus, RefreshLeft, RefreshRight
 } from '@element-plus/icons-vue'
 import {
   getFormDesign,
@@ -577,9 +941,13 @@ import {
   type FormDesignRequest,
   type FormComponentDto,
   type FormGroupDto,
-  type LayoutConfigDto
+  type LayoutConfigDto,
+  type SubTableFieldDto,
+  COMPONENT_TYPES,
+  getDefaultComponentType
 } from '@/api/form'
 import { getViewDetail, type ViewEntity, type ViewField } from '@/api/standard/viewDefinition'
+import { getValueDomainById, type ValueDomain, type DomainOption } from '@/api/standard/valueDomain'
 
 const route = useRoute()
 const router = useRouter()
@@ -608,13 +976,16 @@ interface SubTableItem {
   entityId: number
   entityName: string
   entityCode: string
-  fields: ViewField[]
+  fields: SubTableFieldDto[]
 }
 const subTables = ref<SubTableItem[]>([])
 
 // 视图数据
 const entities = ref<ViewEntity[]>([])
 const fieldMap = ref<Map<number, ViewField[]>>(new Map())
+
+// 值域数据缓存
+const domainMap = ref<Map<number, ValueDomain>>(new Map())
 
 // 搜索
 const searchKeyword = ref('')
@@ -634,6 +1005,8 @@ const zoomLevel = ref(100)
 
 // 选中组件
 const selectedComponent = ref<FormComponentDto | null>(null)
+const selectedSubField = ref<ViewField | null>(null)
+const selectedSubTableIndex = ref<number>(-1)
 
 // 拖拽移动中的组件
 const draggingComponent = ref<FormComponentDto | null>(null)
@@ -644,6 +1017,64 @@ const saving = ref(false)
 // 预览
 const previewVisible = ref(false)
 const previewWidth = ref(75) // 默认75%宽度
+const previewActiveTab = ref('main') // 预览时的激活Tab
+
+// 预览表单数据
+const previewFormData = ref<Record<string, any>>({})
+const previewSubTableData = ref<Record<string, any[]>>({})
+
+// 撤销/还原历史
+interface HistoryState {
+  components: FormComponentDto[]
+  subTables: SubTableItem[]
+  subTableLayout: string
+}
+const historyStack = ref<HistoryState[]>([])
+const historyIndex = ref(-1)
+const MAX_HISTORY = 50
+
+// 保存历史状态
+function saveHistory() {
+  // 删除当前位置之后的历史
+  historyStack.value = historyStack.value.slice(0, historyIndex.value + 1)
+
+  // 保存当前状态
+  const state: HistoryState = {
+    components: JSON.parse(JSON.stringify(components.value)),
+    subTables: JSON.parse(JSON.stringify(subTables.value)),
+    subTableLayout: subTableLayout.value
+  }
+  historyStack.value.push(state)
+
+  // 限制历史记录数量
+  if (historyStack.value.length > MAX_HISTORY) {
+    historyStack.value.shift()
+  } else {
+    historyIndex.value++
+  }
+}
+
+// 撤销
+const canUndo = computed(() => historyIndex.value > 0)
+function handleUndo() {
+  if (!canUndo.value) return
+  historyIndex.value--
+  const state = historyStack.value[historyIndex.value]
+  components.value = JSON.parse(JSON.stringify(state.components))
+  subTables.value = JSON.parse(JSON.stringify(state.subTables))
+  subTableLayout.value = state.subTableLayout
+}
+
+// 还原
+const canRedo = computed(() => historyIndex.value < historyStack.value.length - 1)
+function handleRedo() {
+  if (!canRedo.value) return
+  historyIndex.value++
+  const state = historyStack.value[historyIndex.value]
+  components.value = JSON.parse(JSON.stringify(state.components))
+  subTables.value = JSON.parse(JSON.stringify(state.subTables))
+  subTableLayout.value = state.subTableLayout
+}
 
 // 过滤后的实体
 const filteredEntities = computed(() => {
@@ -655,6 +1086,14 @@ const filteredEntities = computed(() => {
            fields.some(f => f.fieldName.toLowerCase().includes(keyword))
   })
 })
+
+// 获取过滤后的字段列表
+function getFilteredFields(entityId: number) {
+  const fields = fieldMap.value.get(entityId) || []
+  if (!searchKeyword.value) return fields
+  const keyword = searchKeyword.value.toLowerCase()
+  return fields.filter(f => f.fieldName.toLowerCase().includes(keyword))
+}
 
 // 计算行数据
 const rows = computed(() => {
@@ -688,6 +1127,119 @@ function getEntityFields(entityId: number) {
   return fieldMap.value.get(entityId) || []
 }
 
+// 一键全部添加
+function handleAddAllFields() {
+  let mainFieldCount = 0
+  let subTableCount = 0
+  let subFieldCount = 0
+
+  // 添加所有主表字段
+  const mainEntity = entities.value.find(e => e.entityType === 'main')
+  if (mainEntity) {
+    const fields = fieldMap.value.get(mainEntity.id!) || []
+    const existingFieldIds = new Set(components.value.map(c => c.viewFieldId))
+    const newFields = fields.filter(f => !existingFieldIds.has(f.id))
+
+    if (newFields.length > 0) {
+      // 计算起始位置
+      const maxRow = components.value.length > 0
+        ? components.value.reduce((max, c) => Math.max(max, c.rowIndex || 0), 0)
+        : -1
+      const lastRowComps = components.value.filter(c => c.rowIndex === maxRow)
+      const lastRowCols = lastRowComps.reduce((sum, c) => sum + (c.colSpan || 1), 0)
+
+      let rowIndex = lastRowCols >= 4 ? maxRow + 1 : maxRow
+      let colIndex = lastRowCols >= 4 ? 0 : lastRowCols
+
+      newFields.forEach((field, idx) => {
+        const comp: FormComponentDto = {
+          id: Date.now() + idx,
+          formId: formId.value,
+          viewFieldId: field.id,
+          fieldCode: field.fieldCode,
+          fieldName: field.fieldName,
+          fieldType: field.fieldType,
+          domainId: field.domainId,
+          componentType: getDefaultComponentType(field.fieldType, !!field.domainId),
+          groupId: undefined,
+          rowIndex,
+          colIndex,
+          colSpan: 1,
+          rowSpan: 1,
+          isRequired: field.isRequired,
+          isReadonly: formData.formType === 'view',
+          isHidden: false,
+          placeholder: field.placeholder,
+          defaultValue: undefined,
+          validationRules: undefined,
+          labelWidth: undefined,
+          componentWidth: undefined,
+          sort: components.value.length + idx,
+          status: 'active'
+        }
+        components.value.push(comp)
+        mainFieldCount++
+
+        colIndex++
+        if (colIndex >= 4) {
+          rowIndex++
+          colIndex = 0
+        }
+      })
+    }
+  }
+
+  // 添加所有子表及其字段
+  const subEntities = entities.value.filter(e => e.entityType === 'sub')
+  for (const entity of subEntities) {
+    // 检查是否已添加
+    const existingSub = subTables.value.find(st => st.entityId === entity.id)
+    if (existingSub) {
+      // 已存在，添加未添加的字段
+      const fields = fieldMap.value.get(entity.id!) || []
+      const existingFieldIds = new Set(existingSub.fields.map(f => f.id))
+      const newFields = fields.filter(f => !existingFieldIds.has(f.id))
+
+      for (const field of newFields) {
+        existingSub.fields.push({
+          ...field,
+          componentType: getDefaultComponentType(field.fieldType, !!field.domainId),
+          _uid: Date.now() + Math.random()
+        })
+        subFieldCount++
+      }
+    } else {
+      // 不存在，添加新子表及所有字段
+      const fields = fieldMap.value.get(entity.id!) || []
+      subTables.value.push({
+        entityId: entity.id!,
+        entityName: entity.entityName,
+        entityCode: entity.entityCode,
+        fields: fields.map(f => ({
+          ...f,
+          componentType: getDefaultComponentType(f.fieldType, !!f.domainId),
+          _uid: Date.now() + Math.random()
+        }))
+      })
+      subTableCount++
+      subFieldCount += fields.length
+    }
+  }
+
+  // 显示结果
+  const messages: string[] = []
+  if (mainFieldCount > 0) messages.push(`主表字段 ${mainFieldCount} 个`)
+  if (subTableCount > 0) messages.push(`子表 ${subTableCount} 个`)
+  if (subFieldCount > 0) messages.push(`子表字段 ${subFieldCount} 个`)
+
+  if (messages.length > 0) {
+    saveHistory()
+    ElMessage.success(`已添加：${messages.join('、')}`)
+  } else {
+    ElMessage.info('所有字段已添加')
+  }
+}
+
 // 添加子表
 function handleAddSubTable(entity: ViewEntity) {
   // 检查是否已添加
@@ -703,6 +1255,7 @@ function handleAddSubTable(entity: ViewEntity) {
     entityCode: entity.entityCode,
     fields: []
   })
+  saveHistory()
   ElMessage.success(`已添加子表：${entity.entityName}，请拖拽字段到表格中`)
 }
 
@@ -734,8 +1287,13 @@ function handleAddSubTableWithAllFields(entity: ViewEntity) {
     entityId: entity.id!,
     entityName: entity.entityName,
     entityCode: entity.entityCode,
-    fields: fields.map(f => ({ ...f, _uid: Date.now() + Math.random() }))
+    fields: fields.map(f => ({
+      ...f,
+      componentType: getDefaultComponentType(f.fieldType, !!f.domainId),
+      _uid: Date.now() + Math.random()
+    }))
   })
+  saveHistory()
   ElMessage.success(`已添加子表：${entity.entityName}，包含 ${fields.length} 个字段`)
 }
 
@@ -833,6 +1391,7 @@ function handleRemoveSubTable(index: number) {
   if (activeFullTab.value >= subTables.value.length) {
     activeFullTab.value = subTables.value.length > 0 ? subTables.value.length - 1 : -1
   }
+  saveHistory()
   ElMessage.success(`已移除子表：${sub.entityName}`)
 }
 
@@ -875,8 +1434,10 @@ function handleSubFieldDrop(event: DragEvent, subTableIndex: number) {
   // 添加字段
   sub.fields.push({
     ...field,
+    componentType: getDefaultComponentType(field.fieldType, !!field.domainId),
     _uid: Date.now() + Math.random()
   })
+  saveHistory()
   ElMessage.success(`已添加字段：${field.fieldName}`)
 }
 
@@ -904,6 +1465,7 @@ function handleGridFieldDrop(event: DragEvent, subTableIndex: number, targetFiel
     if (sourceIndex > -1 && targetIndex > -1 && sourceIndex !== targetIndex) {
       const [removed] = sub.fields.splice(sourceIndex, 1)
       sub.fields.splice(targetIndex, 0, removed)
+      saveHistory()
     }
   } else if (subFieldStr) {
     // 从左侧添加新字段
@@ -919,8 +1481,10 @@ function handleGridFieldDrop(event: DragEvent, subTableIndex: number, targetFiel
     const targetIndex = sub.fields.findIndex(f => f._uid === targetField._uid || f.id === targetField.id)
     sub.fields.splice(targetIndex, 0, {
       ...field,
+      componentType: getDefaultComponentType(field.fieldType, !!field.domainId),
       _uid: Date.now() + Math.random()
     })
+    saveHistory()
     ElMessage.success(`已添加字段：${field.fieldName}`)
   }
 }
@@ -931,7 +1495,68 @@ function handleRemoveSubField(subTableIndex: number, field: ViewField) {
   const fieldIndex = sub.fields.findIndex(f => f.id === field.id && f._uid === field._uid)
   if (fieldIndex > -1) {
     sub.fields.splice(fieldIndex, 1)
+    // 清除选中状态
+    if (selectedSubField.value?._uid === field._uid) {
+      selectedSubField.value = null
+      selectedSubTableIndex.value = -1
+    }
+    saveHistory()
     ElMessage.success(`已移除字段：${field.fieldName}`)
+  }
+}
+
+// 选中子表字段
+function handleSelectSubField(subTableIndex: number, field: ViewField) {
+  // 清除主表字段选中
+  selectedComponent.value = null
+  // 设置子表字段选中
+  selectedSubField.value = field
+  selectedSubTableIndex.value = subTableIndex
+  // 加载值域数据
+  if (field.domainId && !domainMap.value.has(field.domainId)) {
+    loadDomainData(field.domainId)
+  }
+}
+
+// 获取控件类型选项（所有控件都可选）
+function getComponentTypeOptions(domainId?: number) {
+  // 所有控件类型都可选，但按是否有值域分组
+  const hasDomain = !!domainId
+  return [
+    { label: '── 有值域时 ──', value: '', disabled: true },
+    ...Object.values(COMPONENT_TYPES).filter(t => t.hasDomain),
+    { label: '── 无值域时 ──', value: '', disabled: true },
+    ...Object.values(COMPONENT_TYPES).filter(t => !t.hasDomain)
+  ].filter(opt => !opt.value || (opt.value && !opt.disabled) || opt.disabled)
+}
+
+// 获取组件的控件类型
+function getComponentType(comp: FormComponentDto | SubTableFieldDto): string {
+  if (comp.componentType) return comp.componentType
+  // 兼容旧数据，根据 fieldType 返回默认值
+  const fieldType = comp.fieldType || 'string'
+  return getDefaultComponentType(fieldType, !!comp.domainId)
+}
+
+// 获取值域选项
+function getDomainOptions(domainId?: number): DomainOption[] {
+  if (!domainId) return []
+  return domainMap.value.get(domainId)?.options || []
+}
+
+// 控件类型变更处理
+function onComponentTypeChange(comp: FormComponentDto) {
+  // 控件类型变更后，触发界面更新
+}
+
+// 加载值域数据
+async function loadDomainData(domainId: number) {
+  if (domainMap.value.has(domainId)) return
+  try {
+    const res = await getValueDomainById(domainId)
+    domainMap.value.set(domainId, res.data)
+  } catch (error) {
+    console.warn('加载值域数据失败', error)
   }
 }
 
@@ -964,6 +1589,25 @@ async function loadData() {
       })
       activeCollapse.value = entities.value.map(e => e.id!)
     }
+
+    // 初始化主表字段的控件类型
+    components.value.forEach(comp => {
+      if (!comp.componentType) {
+        comp.componentType = getDefaultComponentType(comp.fieldType, !!comp.domainId)
+      }
+    })
+
+    // 初始化子表字段的控件类型
+    subTables.value.forEach(sub => {
+      sub.fields.forEach(field => {
+        if (!field.componentType) {
+          field.componentType = getDefaultComponentType(field.fieldType || 'string', !!field.domainId)
+        }
+      })
+    })
+
+    // 初始化历史状态
+    saveHistory()
   } catch (error) {
     ElMessage.error('加载数据失败')
   }
@@ -1000,6 +1644,7 @@ function handleDrop(event: DragEvent) {
       fieldName: field.fieldName,
       fieldType: field.fieldType,
       domainId: field.domainId,
+      componentType: getDefaultComponentType(field.fieldType, !!field.domainId),
       groupId: undefined,
       rowIndex: 0,
       colIndex: 0,
@@ -1018,6 +1663,7 @@ function handleDrop(event: DragEvent) {
     }
     components.value.push(comp)
     selectedComponent.value = comp
+    saveHistory()
     return
   }
 
@@ -1043,6 +1689,7 @@ function handleDrop(event: DragEvent) {
     fieldName: field.fieldName,
     fieldType: field.fieldType,
     domainId: field.domainId,
+    componentType: getDefaultComponentType(field.fieldType, !!field.domainId),
     groupId: undefined,
     rowIndex,
     colIndex,
@@ -1062,11 +1709,20 @@ function handleDrop(event: DragEvent) {
 
   components.value.push(comp)
   selectedComponent.value = comp
+  saveHistory()
 }
 
 // 选择组件
 function handleSelectComponent(comp: FormComponentDto) {
+  // 清除子表字段选中
+  selectedSubField.value = null
+  selectedSubTableIndex.value = -1
+  // 设置主表字段选中
   selectedComponent.value = comp
+  // 加载值域数据
+  if (comp.domainId && !domainMap.value.has(comp.domainId)) {
+    loadDomainData(comp.domainId)
+  }
 }
 
 // 删除组件
@@ -1077,6 +1733,7 @@ function handleRemoveComponent(comp: FormComponentDto) {
     if (selectedComponent.value?.id === comp.id) {
       selectedComponent.value = null
     }
+    saveHistory()
   }
 }
 
@@ -1119,6 +1776,7 @@ function handleCellDrop(event: DragEvent, targetComp: FormComponentDto) {
       components.value.splice(insertIndex, 0, removed)
       // 重新计算所有组件的位置
       recalculatePositions()
+      saveHistory()
     }
   } else if (newData) {
     // 添加新组件到指定位置
@@ -1163,6 +1821,7 @@ function handleCellDrop(event: DragEvent, targetComp: FormComponentDto) {
     selectedComponent.value = comp
     // 重新计算所有组件的位置
     recalculatePositions()
+    saveHistory()
   }
 
   draggingComponent.value = null
@@ -1187,8 +1846,177 @@ function handleZoom(type: 'in' | 'out') {
 }
 
 // 预览
-function handlePreview() {
+async function handlePreview() {
+  // 初始化预览数据
+  previewFormData.value = {}
+  previewSubTableData.value = {}
+  previewActiveTab.value = 'main' // 默认显示主表Tab
+
+  // 加载所有字段的值域数据
+  const domainIds = new Set<number>()
+
+  // 收集主表字段的值域ID
+  components.value.forEach(comp => {
+    if (comp.domainId) domainIds.add(comp.domainId)
+  })
+
+  // 收集子表字段的值域ID
+  subTables.value.forEach(sub => {
+    sub.fields.forEach(field => {
+      if (field.domainId) domainIds.add(field.domainId)
+    })
+  })
+
+  // 加载未缓存的值域数据
+  for (const domainId of domainIds) {
+    if (!domainMap.value.has(domainId)) {
+      await loadDomainData(domainId)
+    }
+  }
+
   previewVisible.value = true
+}
+
+// 获取子表预览数据
+function getSubTablePreviewData(entityCode: string): any[] {
+  if (!previewSubTableData.value[entityCode]) {
+    previewSubTableData.value[entityCode] = [{}]
+  }
+  return previewSubTableData.value[entityCode]
+}
+
+// 添加子表行
+function addPreviewSubTableRow(entityCode: string) {
+  if (!previewSubTableData.value[entityCode]) {
+    previewSubTableData.value[entityCode] = []
+  }
+  previewSubTableData.value[entityCode].push({})
+}
+
+// 删除子表行
+function removePreviewSubTableRow(entityCode: string, index: number) {
+  if (previewSubTableData.value[entityCode]) {
+    previewSubTableData.value[entityCode].splice(index, 1)
+  }
+}
+
+// 模拟填写
+function handleAutoFill() {
+  // 填充主表数据
+  components.value.forEach(comp => {
+    const componentType = getComponentType(comp)
+    const domainOptions = getDomainOptions(comp.domainId)
+
+    switch (componentType) {
+      case 'input':
+      case 'textarea':
+        previewFormData.value[comp.fieldCode] = `测试${comp.fieldName}`
+        break
+      case 'password':
+        previewFormData.value[comp.fieldCode] = 'Test@123456'
+        break
+      case 'inputNumber':
+        previewFormData.value[comp.fieldCode] = Math.floor(Math.random() * 100) + 1
+        break
+      case 'slider':
+        previewFormData.value[comp.fieldCode] = Math.floor(Math.random() * 100)
+        break
+      case 'rate':
+        previewFormData.value[comp.fieldCode] = Math.floor(Math.random() * 5) + 1
+        break
+      case 'datePicker':
+        previewFormData.value[comp.fieldCode] = new Date().toISOString().split('T')[0]
+        break
+      case 'dateTimePicker':
+        previewFormData.value[comp.fieldCode] = new Date().toISOString()
+        break
+      case 'timePicker':
+        previewFormData.value[comp.fieldCode] = new Date().toTimeString().slice(0, 8)
+        break
+      case 'switch':
+        previewFormData.value[comp.fieldCode] = true
+        break
+      case 'select':
+        if (domainOptions.length > 0) {
+          previewFormData.value[comp.fieldCode] = domainOptions[0].value
+        }
+        break
+      case 'radio':
+        if (domainOptions.length > 0) {
+          previewFormData.value[comp.fieldCode] = domainOptions[0].value
+        }
+        break
+      case 'checkbox':
+        if (domainOptions.length > 0) {
+          previewFormData.value[comp.fieldCode] = [domainOptions[0].value]
+        }
+        break
+      default:
+        previewFormData.value[comp.fieldCode] = `测试${comp.fieldName}`
+    }
+  })
+
+  // 填充子表数据
+  subTables.value.forEach(sub => {
+    const rows = []
+    // 生成2-3行测试数据
+    const rowCount = Math.floor(Math.random() * 2) + 2
+    for (let i = 0; i < rowCount; i++) {
+      const row: Record<string, any> = {}
+      sub.fields.forEach(field => {
+        const componentType = getComponentType(field)
+        const domainOptions = getDomainOptions(field.domainId)
+
+        switch (componentType) {
+          case 'input':
+          case 'textarea':
+            row[field.fieldCode] = `测试${field.fieldName}${i + 1}`
+            break
+          case 'inputNumber':
+            row[field.fieldCode] = Math.floor(Math.random() * 100) + 1
+            break
+          case 'datePicker':
+            row[field.fieldCode] = new Date().toISOString().split('T')[0]
+            break
+          case 'timePicker':
+            row[field.fieldCode] = new Date().toTimeString().slice(0, 8)
+            break
+          case 'switch':
+            row[field.fieldCode] = true
+            break
+          case 'select':
+            if (domainOptions.length > 0) {
+              row[field.fieldCode] = domainOptions[Math.floor(Math.random() * domainOptions.length)].value
+            }
+            break
+          default:
+            row[field.fieldCode] = `测试${field.fieldName}${i + 1}`
+        }
+      })
+      rows.push(row)
+    }
+    previewSubTableData.value[sub.entityCode] = rows
+  })
+
+  ElMessage.success('已自动填充测试数据')
+}
+
+// 模拟保存
+function handlePreviewSave() {
+  const saveData = {
+    mainTable: { ...previewFormData.value },
+    subTables: { ...previewSubTableData.value }
+  }
+
+  ElMessageBox.alert(
+    `<pre style="max-height: 400px; overflow: auto; white-space: pre-wrap; word-break: break-all;">${JSON.stringify(saveData, null, 2)}</pre>`,
+    '保存数据（JSON）',
+    {
+      dangerouslyUseHTMLString: true,
+      confirmButtonText: '确定',
+      customClass: 'preview-json-dialog'
+    }
+  )
 }
 
 // 保存
@@ -1214,6 +2042,28 @@ async function handleSave() {
   } finally {
     saving.value = false
   }
+}
+
+// 清空所有
+function handleClearAll() {
+  if (components.value.length === 0 && subTables.value.length === 0) {
+    ElMessage.info('没有可清空的内容')
+    return
+  }
+
+  ElMessageBox.confirm('确定要清空所有主表字段和子表吗？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => {
+    components.value = []
+    subTables.value = []
+    selectedComponent.value = null
+    saveHistory()
+    ElMessage.success('已清空')
+  }).catch(() => {
+    // 取消操作
+  })
 }
 
 // 返回
@@ -1492,6 +2342,19 @@ onMounted(() => {
   padding: 12px;
 }
 
+/* 值域选项样式 */
+.domain-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.domain-option-tag {
+  margin: 0;
+}
+
 /* 全屏预览 */
 .preview-fullscreen {
   position: fixed;
@@ -1539,6 +2402,38 @@ onMounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+}
+
+.preview-footer {
+  padding: 16px 20px;
+  border-top: 1px solid #e4e7ed;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.preview-section {
+  margin-bottom: 24px;
+}
+
+.preview-section-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.preview-subtable {
+  margin-bottom: 20px;
+}
+
+.preview-subtable-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 12px;
 }
 
 /* 工具栏左侧 */
@@ -1675,6 +2570,17 @@ onMounted(() => {
   align-items: center;
   gap: 4px;
   min-width: 80px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.grid-cell:hover {
+  background: #ecf5ff;
+}
+
+.grid-cell.selected {
+  background: #ecf5ff;
+  border-color: #409eff;
 }
 
 .grid-cell:last-child {

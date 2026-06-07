@@ -97,6 +97,16 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 处理运行时异常（业务逻辑异常）
+     */
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<ApiResponse<Void>> handleRuntimeException(RuntimeException e) {
+        log.warn("业务异常: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.error(ErrorCode.BUSINESS_ERROR.getCode(), e.getMessage()));
+    }
+
+    /**
      * 处理其他未知异常
      */
     @ExceptionHandler(Exception.class)
