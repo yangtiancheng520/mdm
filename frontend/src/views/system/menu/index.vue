@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getPermissionTree, createPermission, updatePermission, deletePermission, type PermissionTree, type PermissionForm } from '../../../api/permission'
+import { getPermissionTree, createPermission, updatePermission, deletePermission, updatePermissionSort, type PermissionTree, type PermissionForm } from '../../../api/permission'
 import MdmDialog from '../../../components/MdmDialog.vue'
 import MdmConfirmDialog from '../../../components/MdmConfirmDialog.vue'
 
@@ -11,7 +11,6 @@ const treeRef = ref()
 
 // 当前选中的节点
 const selectedNode = ref<PermissionTree | null>(null)
-const expandedKeys = ref<number[]>([])
 
 // 弹窗
 const dialogVisible = ref(false)
@@ -39,8 +38,6 @@ async function fetchTree() {
   try {
     const res = await getPermissionTree()
     treeData.value = res.data || []
-    // 默认全部折叠，不展开任何节点
-    expandedKeys.value = []
   } catch (error) {
     console.error(error)
   } finally {
@@ -75,7 +72,7 @@ function handleAddChild(node: PermissionTree) {
   form.value = {
     name: '',
     code: '',
-    type: node.type === 'menu' ? 'button' : 'button', // 如果父节点是菜单，默认子节点是按钮
+    type: node.type === 'menu' ? 'button' : 'button',
     parentId: node.id,
     path: '',
     icon: '',
@@ -120,24 +117,10 @@ async function handleConfirmDelete() {
   if (!selectedNode.value) return
 
   try {
-    // 保存当前展开的节点
-    const currentExpandedKeys = [...expandedKeys.value]
-
     await deletePermission(selectedNode.value.id)
     ElMessage.success('删除成功')
-
-    // 清空选中节点
     selectedNode.value = null
-
-    // 重新加载树，并恢复展开状态
     await fetchTree()
-
-    // 恢复之前展开的节点（排除被删除的节点）
-    expandedKeys.value = currentExpandedKeys.filter(key => {
-      // 检查节点是否还存在
-      const nodeExists = findNodeInTree(treeData.value, key)
-      return nodeExists
-    })
   } catch (error) {
     console.error(error)
   }
@@ -155,47 +138,19 @@ async function handleSubmit() {
   }
 
   try {
-    // 保存当前展开的节点
-    const currentExpandedKeys = [...expandedKeys.value]
-
     if (form.value.id) {
       await updatePermission(form.value.id, form.value)
       ElMessage.success('更新成功')
     } else {
       await createPermission(form.value)
       ElMessage.success('创建成功')
-
-      // 如果是新增子菜单，自动展开父节点
-      if (form.value.parentId) {
-        currentExpandedKeys.push(form.value.parentId)
-      }
     }
     dialogVisible.value = false
-
-    // 重新加载树，并恢复展开状态
     await fetchTree()
-
-    // 恢复之前展开的节点
-    expandedKeys.value = currentExpandedKeys
   } catch (error: any) {
     console.error(error)
     ElMessage.error(error.response?.data?.message || '操作失败')
   }
-}
-
-// 展开/折叠
-function toggleExpand(key: number) {
-  const index = expandedKeys.value.indexOf(key)
-  if (index > -1) {
-    expandedKeys.value.splice(index, 1)
-  } else {
-    expandedKeys.value.push(key)
-  }
-}
-
-// 判断是否展开
-function isExpanded(key: number) {
-  return expandedKeys.value.includes(key)
 }
 
 // 获取类型标签
@@ -203,30 +158,64 @@ function getTypeLabel(type: string) {
   return type === 'menu' ? '菜单' : '按钮'
 }
 
-// 获取类型图标
-function getTypeIcon(type: string) {
-  return type === 'menu' ? '📁' : '🔘'
+// 拖拽控制
+function allowDrag(draggingNode: any) {
+  return true
 }
 
-// 计算子节点数量
-function getChildCount(node: PermissionTree): number {
-  if (!node.children || node.children.length === 0) return 0
-  return node.children.length
+function allowDrop(draggingNode: any, dropNode: any, type: string) {
+  // 只允许拖拽到菜单节点内或前后
+  if (type === 'inner') {
+    return dropNode.data.type === 'menu'
+  }
+  return true
 }
 
-// 在树中查找节点是否存在
-function findNodeInTree(nodes: PermissionTree[], targetId: number): boolean {
-  for (const node of nodes) {
-    if (node.id === targetId) {
-      return true
+// 拖拽完成
+async function handleDrop(draggingNode: any, dropNode: any, dropType: string, ev: any) {
+  const sortItems: { id: number; parentId: number | null; sort: number }[] = []
+
+  let targetParentId: number | null = null
+  if (dropType === 'inner') {
+    targetParentId = dropNode.data.id
+  } else {
+    targetParentId = dropNode.data.parentId
+  }
+
+  const siblings = getSiblings(treeData.value, targetParentId)
+
+  siblings.forEach((item, index) => {
+    sortItems.push({
+      id: item.id,
+      parentId: targetParentId,
+      sort: index
+    })
+  })
+
+  try {
+    await updatePermissionSort(sortItems)
+    ElMessage.success('排序已保存')
+  } catch (error) {
+    ElMessage.error('排序保存失败')
+    fetchTree()
+  }
+}
+
+// 获取同级节点
+function getSiblings(data: PermissionTree[], parentId: number | null): PermissionTree[] {
+  if (parentId === null) {
+    return data
+  }
+  for (const item of data) {
+    if (item.id === parentId && item.children) {
+      return item.children
     }
-    if (node.children && node.children.length > 0) {
-      if (findNodeInTree(node.children, targetId)) {
-        return true
-      }
+    if (item.children) {
+      const result = getSiblings(item.children, parentId)
+      if (result.length > 0) return result
     }
   }
-  return false
+  return []
 }
 
 onMounted(() => {
@@ -249,92 +238,33 @@ onMounted(() => {
         </div>
 
         <!-- 树形节点 -->
-        <div v-else class="tree-container">
-          <div v-for="node in treeData" :key="node.id" class="tree-node-wrapper">
-            <!-- 一级节点 -->
-            <div
-              class="tree-node level-1"
-              :class="{ active: selectedNode?.id === node.id }"
-              @click="handleNodeClick(node)"
-            >
-              <div class="node-content">
-                <span class="expand-icon" @click.stop="toggleExpand(node.id)">
-                  <template v-if="node.children && node.children.length > 0">
-                    {{ isExpanded(node.id) ? '▼' : '▶' }}
-                  </template>
-                  <template v-else>
-                    <span style="width: 14px; display: inline-block;"></span>
-                  </template>
-                </span>
-                <span class="node-icon">{{ getTypeIcon(node.type) }}</span>
-                <span class="node-name">{{ node.name }}</span>
-                <span class="node-code">({{ node.code }})</span>
-                <span v-if="getChildCount(node) > 0" class="child-count">{{ getChildCount(node) }}</span>
-              </div>
-              <div class="node-actions" @click.stop>
-                <button class="action-btn" @click="handleAddChild(node)" title="添加子菜单">+</button>
-                <button class="action-btn" @click="handleEdit(node)" title="编辑">✎</button>
-                <button class="action-btn delete" @click="handleDelete(node)" title="删除">×</button>
-              </div>
+        <el-tree
+          v-else
+          ref="treeRef"
+          :data="treeData"
+          :props="{ children: 'children', label: 'name' }"
+          node-key="id"
+          :highlight-current="true"
+          :default-expand-all="false"
+          draggable
+          :allow-drop="allowDrop"
+          :allow-drag="allowDrag"
+          @node-click="handleNodeClick"
+          @node-drop="handleDrop"
+        >
+          <template #default="{ node, data }">
+            <div class="tree-node">
+              <span class="node-icon">{{ data.type === 'menu' ? '📁' : '🔘' }}</span>
+              <span class="node-name">{{ data.name }}</span>
+              <span class="node-code">({{ data.code }})</span>
+              <span class="node-actions" @click.stop>
+                <button v-if="data.type === 'menu'" class="action-btn" @click="handleAddChild(data)" title="添加子菜单">+</button>
+                <button class="action-btn" @click="handleEdit(data)" title="编辑">✎</button>
+                <button class="action-btn delete" @click="handleDelete(data)" title="删除">×</button>
+              </span>
             </div>
-
-            <!-- 二级节点 -->
-            <div v-if="isExpanded(node.id) && node.children" class="children-container">
-              <div
-                v-for="child in node.children"
-                :key="child.id"
-                class="child-node-wrapper"
-              >
-                <div
-                  class="tree-node level-2"
-                  :class="{ active: selectedNode?.id === child.id }"
-                  @click="handleNodeClick(child)"
-                >
-                  <div class="node-content">
-                    <span class="expand-icon" @click.stop="toggleExpand(child.id)">
-                      <template v-if="child.children && child.children.length > 0">
-                        {{ isExpanded(child.id) ? '▼' : '▶' }}
-                      </template>
-                      <template v-else>
-                        <span style="width: 14px; display: inline-block;"></span>
-                      </template>
-                    </span>
-                    <span class="node-icon">{{ getTypeIcon(child.type) }}</span>
-                    <span class="node-name">{{ child.name }}</span>
-                    <span class="node-code">({{ child.code }})</span>
-                    <span v-if="getChildCount(child) > 0" class="child-count">{{ getChildCount(child) }}</span>
-                  </div>
-                  <div class="node-actions" @click.stop>
-                    <button class="action-btn" @click="handleAddChild(child)" title="添加子菜单">+</button>
-                    <button class="action-btn" @click="handleEdit(child)" title="编辑">✎</button>
-                    <button class="action-btn delete" @click="handleDelete(child)" title="删除">×</button>
-                  </div>
-                </div>
-
-                <!-- 三级节点 -->
-                <div v-if="isExpanded(child.id) && child.children" class="children-container level-3-container">
-                  <div
-                    v-for="grandchild in child.children"
-                    :key="grandchild.id"
-                    class="tree-node level-3"
-                    :class="{ active: selectedNode?.id === grandchild.id }"
-                    @click="handleNodeClick(grandchild)"
-                  >
-                    <div class="node-content">
-                      <span class="node-icon">{{ getTypeIcon(grandchild.type) }}</span>
-                      <span class="node-name">{{ grandchild.name }}</span>
-                      <span class="node-code">({{ grandchild.code }})</span>
-                    </div>
-                    <div class="node-actions" @click.stop>
-                      <button class="action-btn" @click="handleEdit(grandchild)" title="编辑">✎</button>
-                      <button class="action-btn delete" @click="handleDelete(grandchild)" title="删除">×</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+          </template>
+        </el-tree>
       </div>
     </div>
 
@@ -454,13 +384,11 @@ onMounted(() => {
   padding: 20px;
   background: #f5f5f5;
   min-height: calc(100vh - 60px);
-  overflow-x: auto;
 }
 
 // 左侧树形面板
 .left-panel {
   width: 400px;
-  min-width: 300px;
   flex-shrink: 0;
   background: #fff;
   border-radius: 4px;
@@ -489,7 +417,6 @@ onMounted(() => {
       color: white;
       font-size: 13px;
       cursor: pointer;
-      transition: 0.2s;
 
       &:hover {
         background: #c81e2c;
@@ -514,102 +441,29 @@ onMounted(() => {
   }
 }
 
-// 树形容器
-.tree-container {
-  .tree-node-wrapper {
-    margin-bottom: 4px;
-  }
-
-  .child-node-wrapper {
-    width: 100%;
-  }
-}
-
+// 树节点样式
 .tree-node {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 8px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: 0.2s;
-  margin-bottom: 2px;
+  gap: 6px;
+  flex: 1;
+  padding: 2px 0;
 
-  &:hover {
-    background: #f5f5f5;
+  .node-icon {
+    font-size: 16px;
   }
 
-  &.active {
-    background: #fef9f5;
-    border-left: 3px solid #ed2b33;
-
-    .node-name {
-      color: #ed2b33;
-      font-weight: 500;
-    }
+  .node-name {
+    color: #333;
   }
 
-  &.level-1 {
-    background: #fafafa;
-    font-weight: 500;
-
-    &:hover {
-      background: #f0f0f0;
-    }
-  }
-
-  &.level-2 {
-    font-weight: normal;
-  }
-
-  &.level-3 {
-    font-weight: normal;
-    font-size: 13px;
-  }
-
-  .node-content {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex: 1;
-
-    .expand-icon {
-      width: 14px;
-      font-size: 10px;
-      color: #999;
-      cursor: pointer;
-
-      &:hover {
-        color: #333;
-      }
-    }
-
-    .node-icon {
-      font-size: 16px;
-    }
-
-    .node-name {
-      color: #333;
-    }
-
-    .node-code {
-      font-size: 12px;
-      color: #999;
-    }
-
-    .child-count {
-      display: inline-block;
-      padding: 0 6px;
-      background: #ed2b33;
-      color: white;
-      border-radius: 10px;
-      font-size: 11px;
-      min-width: 18px;
-      text-align: center;
-    }
+  .node-code {
+    font-size: 12px;
+    color: #999;
   }
 
   .node-actions {
+    margin-left: auto;
     display: flex;
     gap: 4px;
     opacity: 0;
@@ -634,18 +488,10 @@ onMounted(() => {
       }
     }
   }
-
-  &:hover .node-actions {
-    opacity: 1;
-  }
 }
 
-.children-container {
-  margin-left: 20px;
-
-  &.level-3-container {
-    margin-left: 20px;
-  }
+.tree-node:hover .node-actions {
+  opacity: 1;
 }
 
 // 右侧详情面板

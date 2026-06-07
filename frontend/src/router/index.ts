@@ -106,6 +106,19 @@ const routes = [
         component: () => import('../views/form/design/index.vue'),
         meta: { title: '表单设计器' }
       },
+      // 主数据管理
+      {
+        path: 'data/category',
+        name: 'DataCategory',
+        component: () => import('../views/data/category/index.vue'),
+        meta: { title: '数据分类' }
+      },
+      {
+        path: 'data/maintain',
+        name: 'DataMaintain',
+        component: () => import('../views/data/maintain/index.vue'),
+        meta: { title: '数据维护' }
+      },
       // 流程与任务管理中心
       {
         path: 'workflow/define',

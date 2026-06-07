@@ -101,9 +101,9 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiResponse<Void>> handleRuntimeException(RuntimeException e) {
-        log.warn("业务异常: {}", e.getMessage());
+        log.warn("业务异常: {}", e.getMessage(), e);
         return ResponseEntity.status(HttpStatus.OK)
-                .body(ApiResponse.error(ErrorCode.BUSINESS_ERROR.getCode(), e.getMessage()));
+                .body(ApiResponse.error(ErrorCode.BUSINESS_ERROR.getCode(), e.getMessage() != null ? e.getMessage() : "系统繁忙，请稍后重试"));
     }
 
     /**

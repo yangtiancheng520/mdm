@@ -113,6 +113,15 @@ public class FormService {
     }
 
     /**
+     * 自动生成表单
+     */
+    @Transactional
+    public FormDto autoGenerateForm(FormDesignRequest request) {
+        // 自动生成表单与创建表单类似，后续可以添加自动生成逻辑
+        return createForm(request);
+    }
+
+    /**
      * 更新表单
      */
     @Transactional

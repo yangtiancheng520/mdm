@@ -45,4 +45,10 @@ public class PermissionController {
         permissionService.deletePermission(id);
         return ApiResponse.success();
     }
+
+    @PutMapping("/sort")
+    public ApiResponse<?> updateSort(@RequestBody List<Map<String, Object>> items) {
+        permissionService.updatePermissionSort(items);
+        return ApiResponse.success();
+    }
 }

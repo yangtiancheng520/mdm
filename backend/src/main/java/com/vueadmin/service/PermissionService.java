@@ -43,7 +43,8 @@ public class PermissionService {
     }
 
     public List<PermissionDto> getPermissionTree() {
-        List<Permission> permissions = permissionRepository.findAll();
+        // 按 sort 排序获取所有权限
+        List<Permission> permissions = permissionRepository.findAllOrderBySortAsc();
 
         List<PermissionDto> list = permissions.stream().map(p -> {
             PermissionDto dto = new PermissionDto();
@@ -72,6 +73,12 @@ public class PermissionService {
                 result.add(item);
             }
         }
+        // 按 sort 排序
+        result.sort((a, b) -> {
+            if (a.getSort() == null) return 1;
+            if (b.getSort() == null) return -1;
+            return a.getSort().compareTo(b.getSort());
+        });
         return result;
     }
 
@@ -110,5 +117,22 @@ public class PermissionService {
     @Transactional
     public void deletePermission(Long id) {
         permissionRepository.deleteById(id);
+    }
+
+    @Transactional
+    public void updatePermissionSort(List<Map<String, Object>> items) {
+        for (Map<String, Object> item : items) {
+            Long id = Long.valueOf(item.get("id").toString());
+            Integer sort = Integer.valueOf(item.get("sort").toString());
+            Object parentIdObj = item.get("parentId");
+            Long parentId = parentIdObj != null ? Long.valueOf(parentIdObj.toString()) : null;
+
+            Permission p = permissionRepository.findById(id).orElse(null);
+            if (p != null) {
+                p.setSort(sort);
+                p.setParentId(parentId);
+                permissionRepository.save(p);
+            }
+        }
     }
 }

@@ -26,9 +26,13 @@ INSERT INTO permissions (id, name, code, type, parent_id, path, icon, sort, stat
 INSERT INTO permissions (id, name, code, type, parent_id, path, icon, sort, status, created_at) VALUES
 (300, '流程与任务管理中心', 'workflow', 'menu', NULL, '/workflow', 'Connection', 30, 'active', NOW());
 
--- 4. 主数据生命周期管理
+-- 4. 主数据管理
 INSERT INTO permissions (id, name, code, type, parent_id, path, icon, sort, status, created_at) VALUES
-(400, '主数据生命周期管理', 'masterdata', 'menu', NULL, '/masterdata', 'DataAnalysis', 40, 'active', NOW());
+(350, '主数据管理', 'data', 'menu', NULL, '/data', 'DataAnalysis', 35, 'active', NOW());
+
+-- 5. 主数据生命周期管理
+INSERT INTO permissions (id, name, code, type, parent_id, path, icon, sort, status, created_at) VALUES
+(400, '主数据生命周期管理', 'masterdata', 'menu', NULL, '/masterdata', 'DataLine', 40, 'active', NOW());
 
 -- 5. 数据质量管理
 INSERT INTO permissions (id, name, code, type, parent_id, path, icon, sort, status, created_at) VALUES
@@ -69,7 +73,12 @@ INSERT INTO permissions (id, name, code, type, parent_id, path, icon, sort, stat
 (303, '已办任务', 'workflow:done', 'menu', 300, '/workflow/done', 'Finished', 3, 'active', NOW()),
 (304, '流程监控', 'workflow:monitor', 'menu', 300, '/workflow/monitor', 'View', 4, 'active', NOW());
 
--- 4. 主数据生命周期管理 (父ID: 400)
+-- 4. 主数据管理 (父ID: 350)
+INSERT INTO permissions (id, name, code, type, parent_id, path, icon, sort, status, created_at) VALUES
+(351, '数据分类', 'data:category', 'menu', 350, '/data/category', 'Folder', 1, 'active', NOW()),
+(352, '数据维护', 'data:maintain', 'menu', 350, '/data/maintain', 'Edit', 2, 'active', NOW());
+
+-- 5. 主数据生命周期管理 (父ID: 400)
 INSERT INTO permissions (id, name, code, type, parent_id, path, icon, sort, status, created_at) VALUES
 (401, '主数据类型', 'masterdata:type', 'menu', 400, '/masterdata/type', 'Grid', 1, 'active', NOW()),
 (402, '主数据实例', 'masterdata:instance', 'menu', 400, '/masterdata/instance', 'DataLine', 2, 'active', NOW()),

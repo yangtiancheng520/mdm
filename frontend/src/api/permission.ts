@@ -53,3 +53,8 @@ export function updatePermission(id: number, data: PermissionForm) {
 export function deletePermission(id: number) {
   return api.delete(`/permission/delete/${id}`)
 }
+
+// 更新排序
+export function updatePermissionSort(data: { id: number; parentId: number | null; sort: number }[]) {
+  return api.put('/permission/sort', data)
+}
