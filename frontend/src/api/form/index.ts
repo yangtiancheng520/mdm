@@ -216,6 +216,13 @@ export function publishForm(id: number) {
 }
 
 /**
+ * 取消发布表单
+ */
+export function unpublishForm(id: number) {
+  return api.post<void>(`/form/${id}/unpublish`)
+}
+
+/**
  * 设置默认表单
  */
 export function setDefaultForm(id: number) {

@@ -103,6 +103,15 @@ public class FormController {
     }
 
     /**
+     * 取消发布表单
+     */
+    @PostMapping("/{id}/unpublish")
+    public ApiResponse<Void> unpublishForm(@PathVariable Long id) {
+        formService.unpublishForm(id);
+        return ApiResponse.success();
+    }
+
+    /**
      * 设置默认表单
      */
     @PostMapping("/{id}/set-default")

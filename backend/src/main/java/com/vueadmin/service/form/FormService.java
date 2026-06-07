@@ -151,6 +151,23 @@ public class FormService {
     }
 
     /**
+     * 取消发布表单
+     */
+    @Transactional
+    public void unpublishForm(Long id) {
+        Form form = formRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("表单不存在"));
+
+        if (!"published".equals(form.getStatus())) {
+            throw new BusinessException("只有已发布的表单才能取消发布");
+        }
+
+        form.setStatus("draft");
+        form.setIsDefault(false); // 取消发布时清除默认标记
+        formRepository.save(form);
+    }
+
+    /**
      * 设置默认表单
      */
     @Transactional

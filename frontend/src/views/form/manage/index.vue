@@ -56,6 +56,7 @@
                 <button v-if="row.status === 'draft'" class="action-btn edit" @click="handleEdit(row)">编辑</button>
                 <button v-if="row.status === 'published'" class="action-btn view" @click="handleView(row)">查看</button>
                 <button v-if="row.status === 'draft'" class="action-btn publish" @click="handlePublish(row)">发布</button>
+                <button v-if="row.status === 'published'" class="action-btn unpublish" @click="handleUnpublish(row)">取消发布</button>
                 <button v-if="row.status === 'draft'" class="action-btn delete" @click="handleDelete(row)">删除</button>
               </div>
             </td>
@@ -117,6 +118,7 @@ import {
   updateForm,
   deleteForm,
   publishForm,
+  unpublishForm,
   type FormDto,
   type FormDesignRequest
 } from '@/api/form'
@@ -147,7 +149,7 @@ const submitting = ref(false)
 // 确认对话框
 const confirmVisible = ref(false)
 const confirmMessage = ref('')
-const pendingAction = ref<'publish' | 'delete' | null>(null)
+const pendingAction = ref<'publish' | 'unpublish' | 'delete' | null>(null)
 const pendingRow = ref<FormDto | null>(null)
 
 // 表单数据
@@ -327,6 +329,14 @@ function handlePublish(row: FormDto) {
   confirmVisible.value = true
 }
 
+// 取消发布
+function handleUnpublish(row: FormDto) {
+  pendingAction.value = 'unpublish'
+  pendingRow.value = row
+  confirmMessage.value = '确定要取消发布此表单吗？取消后将退回草稿状态。'
+  confirmVisible.value = true
+}
+
 // 删除
 function handleDelete(row: FormDto) {
   pendingAction.value = 'delete'
@@ -343,13 +353,16 @@ async function handleConfirm() {
     if (pendingAction.value === 'publish') {
       await publishForm(pendingRow.value.id)
       ElMessage.success('发布成功')
+    } else if (pendingAction.value === 'unpublish') {
+      await unpublishForm(pendingRow.value.id)
+      ElMessage.success('已取消发布，表单退回草稿状态')
     } else if (pendingAction.value === 'delete') {
       await deleteForm(pendingRow.value.id)
       ElMessage.success('删除成功')
     }
     loadData()
   } catch (error) {
-    ElMessage.error(pendingAction.value === 'publish' ? '发布失败' : '删除失败')
+    ElMessage.error(pendingAction.value === 'publish' ? '发布失败' : pendingAction.value === 'unpublish' ? '取消发布失败' : '删除失败')
   } finally {
     pendingAction.value = null
     pendingRow.value = null
@@ -420,6 +433,7 @@ onMounted(() => {
     &.view { color: #1890ff; }
     &.edit { color: #1890ff; }
     &.publish { color: #52c41a; }
+    &.unpublish { color: #faad14; }
     &.delete { color: #f56c6c; }
 
     &:hover {

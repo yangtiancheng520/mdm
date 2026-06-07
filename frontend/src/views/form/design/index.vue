@@ -7,14 +7,14 @@
           <el-icon><ArrowLeft /></el-icon>
           返回
         </el-button>
-        <span class="form-title">{{ formData.formName || '表单设计器' }}</span>
+        <span class="form-title">{{ formData.formName || '表单设计器' }}{{ isViewMode ? '（查看）' : '' }}</span>
       </div>
       <div class="header-right">
-        <el-button @click="handlePreview">
+        <el-button v-if="!isViewMode" @click="handlePreview">
           <el-icon><View /></el-icon>
           预览
         </el-button>
-        <el-button type="primary" @click="handleSave" :loading="saving">
+        <el-button v-if="!isViewMode" type="primary" @click="handleSave" :loading="saving">
           <el-icon><Check /></el-icon>
           保存
         </el-button>
@@ -48,7 +48,7 @@
                 </span>
                 <!-- 主表：添加全部按钮 -->
                 <el-button
-                  v-if="entity.entityType === 'main'"
+                  v-if="entity.entityType === 'main' && !isViewMode"
                   link
                   type="primary"
                   size="small"
@@ -59,7 +59,7 @@
                 </el-button>
                 <!-- 子表：下拉菜单 -->
                 <el-dropdown
-                  v-else
+                  v-else-if="entity.entityType !== 'main' && !isViewMode"
                   @command="(cmd: string) => handleSubTableCommand(cmd, entity)"
                   trigger="click"
                   @click.stop
@@ -86,9 +86,9 @@
                   v-for="field in getFilteredFields(entity.id)"
                   :key="field.id"
                   class="field-item"
-                  :class="{ 'field-added': isFieldAdded(field.id) }"
-                  :draggable="!isFieldAdded(field.id)"
-                  @dragstart="handleDragStart($event, field)"
+                  :class="{ 'field-added': isFieldAdded(field.id), 'field-disabled': isViewMode }"
+                  :draggable="!isFieldAdded(field.id) && !isViewMode"
+                  @dragstart="!isViewMode && handleDragStart($event, field)"
                 >
                   <el-icon><Document /></el-icon>
                   <span class="field-name">{{ field.fieldName }}</span>
@@ -99,15 +99,15 @@
               <template v-else>
                 <div class="subtable-tip">
                   <el-icon><InfoFilled /></el-icon>
-                  <span>拖拽字段到右侧子表表格</span>
+                  <span>{{ isViewMode ? '子表字段列表' : '拖拽字段到右侧子表表格' }}</span>
                 </div>
                 <div
                   v-for="field in getFilteredFields(entity.id)"
                   :key="field.id"
                   class="field-item"
-                  :class="{ 'field-added': isFieldAddedToSubTable(field.id) }"
-                  :draggable="!isFieldAddedToSubTable(field.id)"
-                  @dragstart="handleSubFieldDragStart($event, field)"
+                  :class="{ 'field-added': isFieldAddedToSubTable(field.id), 'field-disabled': isViewMode }"
+                  :draggable="!isFieldAddedToSubTable(field.id) && !isViewMode"
+                  @dragstart="!isViewMode && handleSubFieldDragStart($event, field)"
                 >
                   <el-icon><Document /></el-icon>
                   <span class="field-name">{{ field.fieldName }}</span>
@@ -125,22 +125,24 @@
       <div class="canvas-panel">
         <div class="canvas-toolbar">
           <div class="toolbar-left">
-            <el-button type="primary" size="small" @click="handleAddAllFields">
-              一键生成
-            </el-button>
-            <el-button type="danger" size="small" @click="handleClearAll">
-              清空
-            </el-button>
-            <el-divider direction="vertical" />
+            <template v-if="!isViewMode">
+              <el-button type="primary" size="small" @click="handleAddAllFields">
+                一键生成
+              </el-button>
+              <el-button type="danger" size="small" @click="handleClearAll">
+                清空
+              </el-button>
+              <el-divider direction="vertical" />
+            </template>
             <span class="toolbar-label">表单布局：</span>
-            <el-select v-model="subTableLayout" size="small" style="width: 140px">
+            <el-select v-model="subTableLayout" size="small" style="width: 140px" :disabled="isViewMode">
               <el-option value="tabs" label="主表+子表Tab" />
               <el-option value="full-tabs" label="全Tab布局" />
               <el-option value="collapse" label="折叠面板" />
               <el-option value="flat" label="平铺展示" />
             </el-select>
           </div>
-          <el-button-group size="small">
+          <el-button-group size="small" v-if="!isViewMode">
             <el-tooltip content="撤销" placement="bottom">
               <el-button @click="handleUndo" :disabled="!canUndo">
                 <el-icon><RefreshLeft /></el-icon>
@@ -168,9 +170,7 @@
           <div class="canvas-scale" :style="{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top left' }">
             <div
               class="canvas"
-              @dragover.prevent
-              @drop="handleDrop"
-              :class="{ 'canvas-empty': components.length === 0 && subTables.length === 0 }"
+              :class="{ 'canvas-empty': components.length === 0 && subTables.length === 0, 'view-mode': isViewMode }"
             >
             <!-- 全Tab布局 -->
             <template v-if="subTableLayout === 'full-tabs'">
@@ -191,7 +191,7 @@
                     @click="activeFullTab = index"
                   >
                     {{ sub.entityName }}
-                    <el-button link size="small" @click.stop="handleRemoveSubTable(index)">
+                    <el-button v-if="!isViewMode" link size="small" @click.stop="handleRemoveSubTable(index)">
                       <el-icon><Close /></el-icon>
                     </el-button>
                   </div>
@@ -206,16 +206,16 @@
                           :key="comp.id"
                           class="canvas-cell"
                           :style="{ flex: comp.colSpan || 1 }"
-                          :class="{ selected: selectedComponent?.id === comp.id, dragging: draggingComponent?.id === comp.id }"
+                          :class="{ selected: selectedComponent?.id === comp.id, dragging: !isViewMode && draggingComponent?.id === comp.id }"
                           @click="handleSelectComponent(comp)"
-                          draggable="true"
-                          @dragstart="handleCellDragStart($event, comp)"
-                          @dragover.prevent="handleCellDragOver($event, comp)"
-                          @drop="handleCellDrop($event, comp)"
+                          :draggable="!isViewMode"
+                          @dragstart="!isViewMode && handleCellDragStart($event, comp)"
+                          @dragover.prevent="!isViewMode && handleCellDragOver($event, comp)"
+                          @drop="!isViewMode && handleCellDrop($event, comp)"
                         >
                           <div class="component-wrapper">
                             <div class="component-label">
-                              <el-icon class="drag-handle"><Rank /></el-icon>
+                              <el-icon v-if="!isViewMode" class="drag-handle"><Rank /></el-icon>
                               {{ comp.fieldName }}
                             </div>
                             <div class="component-control">
@@ -239,7 +239,7 @@
                               </el-checkbox-group>
                               <el-input v-else disabled :placeholder="comp.placeholder || '请输入'" size="small" />
                             </div>
-                            <div class="component-actions">
+                            <div v-if="!isViewMode" class="component-actions">
                               <el-button type="primary" link size="small" @click.stop="handleRemoveComponent(comp)">
                                 <el-icon><Delete /></el-icon>
                               </el-button>
@@ -254,26 +254,22 @@
                   </template>
                   <!-- 子表Tab内容 -->
                   <template v-else-if="subTables[activeFullTab]">
-                    <div
-                      class="subtable-grid"
-                      @dragover.prevent
-                      @drop="handleSubFieldDrop($event, activeFullTab)"
-                    >
+                    <div class="subtable-grid">
                       <div class="grid-header" v-if="subTables[activeFullTab].fields.length > 0">
                         <div
                           v-for="field in subTables[activeFullTab].fields"
                           :key="field._uid || field.id"
                           class="grid-cell"
                           :class="{ selected: selectedSubField?._uid === field._uid && selectedSubTableIndex === activeFullTab }"
-                          draggable="true"
+                          :draggable="!isViewMode"
                           @click.stop="handleSelectSubField(activeFullTab, field)"
-                          @dragstart="handleGridFieldDragStart($event, activeFullTab, field)"
+                          @dragstart="!isViewMode && handleGridFieldDragStart($event, activeFullTab, field)"
                           @dragover.prevent
-                          @drop="handleGridFieldDrop($event, activeFullTab, field)"
+                          @drop="!isViewMode && handleGridFieldDrop($event, activeFullTab, field)"
                         >
-                          <el-icon class="drag-handle"><Rank /></el-icon>
+                          <el-icon v-if="!isViewMode" class="drag-handle"><Rank /></el-icon>
                           {{ field.fieldName }}
-                          <el-button link type="danger" size="small" @click.stop="handleRemoveSubField(activeFullTab, field)">
+                          <el-button v-if="!isViewMode" link type="danger" size="small" @click.stop="handleRemoveSubField(activeFullTab, field)">
                             <el-icon><Close /></el-icon>
                           </el-button>
                         </div>
@@ -295,12 +291,12 @@
                             </el-checkbox-group>
                             <el-input v-else disabled size="small" />
                           </div>
-                          <div class="grid-cell action-cell">
+                          <div v-if="!isViewMode" class="grid-cell action-cell">
                             <el-button link type="danger" size="small">删除</el-button>
                           </div>
                         </div>
                       </div>
-                      <div class="drop-hint" v-if="subTables[activeFullTab].fields.length === 0">
+                      <div class="drop-hint" v-if="subTables[activeFullTab].fields.length === 0 && !isViewMode">
                         拖拽字段到此处
                       </div>
                     </div>
@@ -321,16 +317,16 @@
                       :key="comp.id"
                       class="canvas-cell"
                       :style="{ flex: comp.colSpan || 1 }"
-                      :class="{ selected: selectedComponent?.id === comp.id, dragging: draggingComponent?.id === comp.id }"
+                      :class="{ selected: selectedComponent?.id === comp.id, dragging: !isViewMode && draggingComponent?.id === comp.id }"
                       @click="handleSelectComponent(comp)"
-                      draggable="true"
-                      @dragstart="handleCellDragStart($event, comp)"
-                      @dragover.prevent="handleCellDragOver($event, comp)"
-                      @drop="handleCellDrop($event, comp)"
+                      :draggable="!isViewMode"
+                      @dragstart="!isViewMode && handleCellDragStart($event, comp)"
+                      @dragover.prevent="!isViewMode && handleCellDragOver($event, comp)"
+                      @drop="!isViewMode && handleCellDrop($event, comp)"
                     >
                       <div class="component-wrapper">
                         <div class="component-label">
-                          <el-icon class="drag-handle"><Rank /></el-icon>
+                          <el-icon v-if="!isViewMode" class="drag-handle"><Rank /></el-icon>
                           {{ comp.fieldName }}
                         </div>
                         <div class="component-control">
@@ -353,7 +349,7 @@
                           </el-checkbox-group>
                           <el-input v-else disabled :placeholder="comp.placeholder || '请输入'" size="small" />
                         </div>
-                        <div class="component-actions">
+                        <div v-if="!isViewMode" class="component-actions">
                           <el-button type="primary" link size="small" @click.stop="handleRemoveComponent(comp)">
                             <el-icon><Delete /></el-icon>
                           </el-button>
@@ -380,32 +376,28 @@
                         @click="activeSubTableTab = index"
                       >
                         {{ sub.entityName }}
-                        <el-button link size="small" @click.stop="handleRemoveSubTable(index)">
+                        <el-button v-if="!isViewMode" link size="small" @click.stop="handleRemoveSubTable(index)">
                           <el-icon><Close /></el-icon>
                         </el-button>
                       </div>
                     </div>
                     <div class="subtable-content" v-if="subTables[activeSubTableTab]">
-                      <div
-                        class="subtable-grid"
-                        @dragover.prevent
-                        @drop="handleSubFieldDrop($event, activeSubTableTab)"
-                      >
+                      <div class="subtable-grid">
                         <div class="grid-header" v-if="subTables[activeSubTableTab].fields.length > 0">
                           <div
                             v-for="field in subTables[activeSubTableTab].fields"
                             :key="field._uid || field.id"
                             class="grid-cell"
                             :class="{ selected: selectedSubField?._uid === field._uid && selectedSubTableIndex === activeSubTableTab }"
-                            draggable="true"
+                            :draggable="!isViewMode"
                             @click.stop="handleSelectSubField(activeSubTableTab, field)"
-                            @dragstart="handleGridFieldDragStart($event, activeSubTableTab, field)"
+                            @dragstart="!isViewMode && handleGridFieldDragStart($event, activeSubTableTab, field)"
                             @dragover.prevent
-                            @drop="handleGridFieldDrop($event, activeSubTableTab, field)"
+                            @drop="!isViewMode && handleGridFieldDrop($event, activeSubTableTab, field)"
                           >
-                            <el-icon class="drag-handle"><Rank /></el-icon>
+                            <el-icon v-if="!isViewMode" class="drag-handle"><Rank /></el-icon>
                             {{ field.fieldName }}
-                            <el-button link type="danger" size="small" @click.stop="handleRemoveSubField(activeSubTableTab, field)">
+                            <el-button v-if="!isViewMode" link type="danger" size="small" @click.stop="handleRemoveSubField(activeSubTableTab, field)">
                               <el-icon><Close /></el-icon>
                             </el-button>
                           </div>
@@ -427,12 +419,12 @@
                               </el-checkbox-group>
                               <el-input v-else disabled size="small" />
                             </div>
-                            <div class="grid-cell action-cell">
+                            <div v-if="!isViewMode" class="grid-cell action-cell">
                               <el-button link type="danger" size="small">删除</el-button>
                             </div>
                           </div>
                         </div>
-                        <div class="drop-hint" v-if="subTables[activeSubTableTab].fields.length === 0">
+                        <div class="drop-hint" v-if="subTables[activeSubTableTab].fields.length === 0 && !isViewMode">
                           拖拽字段到此处
                         </div>
                       </div>
@@ -445,30 +437,26 @@
                       <el-collapse-item v-for="(sub, index) in subTables" :key="sub.entityId" :name="index">
                         <template #title>
                           <span>{{ sub.entityName }}</span>
-                          <el-button link type="danger" size="small" @click.stop="handleRemoveSubTable(index)">
+                          <el-button v-if="!isViewMode" link type="danger" size="small" @click.stop="handleRemoveSubTable(index)">
                             删除
                           </el-button>
                         </template>
-                        <div
-                          class="subtable-grid"
-                          @dragover.prevent
-                          @drop="handleSubFieldDrop($event, index)"
-                        >
+                        <div class="subtable-grid">
                           <div class="grid-header" v-if="sub.fields.length > 0">
                             <div
                               v-for="field in sub.fields"
                               :key="field._uid || field.id"
                               class="grid-cell"
                               :class="{ selected: selectedSubField?._uid === field._uid && selectedSubTableIndex === index }"
-                              draggable="true"
+                              :draggable="!isViewMode"
                               @click.stop="handleSelectSubField(index, field)"
-                              @dragstart="handleGridFieldDragStart($event, index, field)"
+                              @dragstart="!isViewMode && handleGridFieldDragStart($event, index, field)"
                               @dragover.prevent
-                              @drop="handleGridFieldDrop($event, index, field)"
+                              @drop="!isViewMode && handleGridFieldDrop($event, index, field)"
                             >
-                              <el-icon class="drag-handle"><Rank /></el-icon>
+                              <el-icon v-if="!isViewMode" class="drag-handle"><Rank /></el-icon>
                               {{ field.fieldName }}
-                              <el-button link type="danger" size="small" @click.stop="handleRemoveSubField(index, field)">
+                              <el-button v-if="!isViewMode" link type="danger" size="small" @click.stop="handleRemoveSubField(index, field)">
                                 <el-icon><Close /></el-icon>
                               </el-button>
                             </div>
@@ -490,12 +478,12 @@
                                 </el-checkbox-group>
                                 <el-input v-else disabled size="small" />
                               </div>
-                              <div class="grid-cell action-cell">
+                              <div v-if="!isViewMode" class="grid-cell action-cell">
                                 <el-button link type="danger" size="small">删除</el-button>
                               </div>
                             </div>
                           </div>
-                          <div class="drop-hint" v-if="sub.fields.length === 0">
+                          <div class="drop-hint" v-if="sub.fields.length === 0 && !isViewMode">
                             拖拽字段到此处
                           </div>
                         </div>
@@ -508,30 +496,26 @@
                     <div v-for="(sub, index) in subTables" :key="sub.entityId" class="subtable-flat">
                       <div class="subtable-flat-header">
                         <span>{{ sub.entityName }}</span>
-                        <el-button link type="danger" size="small" @click="handleRemoveSubTable(index)">
+                        <el-button v-if="!isViewMode" link type="danger" size="small" @click="handleRemoveSubTable(index)">
                           删除
                         </el-button>
                       </div>
-                      <div
-                        class="subtable-grid"
-                        @dragover.prevent
-                        @drop="handleSubFieldDrop($event, index)"
-                      >
+                      <div class="subtable-grid">
                         <div class="grid-header" v-if="sub.fields.length > 0">
                           <div
                             v-for="field in sub.fields"
                             :key="field._uid || field.id"
                             class="grid-cell"
                             :class="{ selected: selectedSubField?._uid === field._uid && selectedSubTableIndex === index }"
-                            draggable="true"
+                            :draggable="!isViewMode"
                             @click.stop="handleSelectSubField(index, field)"
-                            @dragstart="handleGridFieldDragStart($event, index, field)"
+                            @dragstart="!isViewMode && handleGridFieldDragStart($event, index, field)"
                             @dragover.prevent
-                            @drop="handleGridFieldDrop($event, index, field)"
+                            @drop="!isViewMode && handleGridFieldDrop($event, index, field)"
                           >
-                            <el-icon class="drag-handle"><Rank /></el-icon>
+                            <el-icon v-if="!isViewMode" class="drag-handle"><Rank /></el-icon>
                             {{ field.fieldName }}
-                            <el-button link type="danger" size="small" @click.stop="handleRemoveSubField(index, field)">
+                            <el-button v-if="!isViewMode" link type="danger" size="small" @click.stop="handleRemoveSubField(index, field)">
                               <el-icon><Close /></el-icon>
                             </el-button>
                           </div>
@@ -553,12 +537,12 @@
                               </el-checkbox-group>
                               <el-input v-else disabled size="small" />
                             </div>
-                            <div class="grid-cell action-cell">
+                            <div v-if="!isViewMode" class="grid-cell action-cell">
                               <el-button link type="danger" size="small">删除</el-button>
                             </div>
                           </div>
                         </div>
-                        <div class="drop-hint" v-if="sub.fields.length === 0">
+                        <div class="drop-hint" v-if="sub.fields.length === 0 && !isViewMode">
                           拖拽字段到此处
                         </div>
                       </div>
@@ -568,7 +552,7 @@
               </template>
             </template>
 
-            <div v-if="components.length === 0 && subTables.length === 0" class="canvas-placeholder">
+            <div v-if="components.length === 0 && subTables.length === 0 && !isViewMode" class="canvas-placeholder">
               <el-icon size="48"><Upload /></el-icon>
               <p>从左侧拖拽字段到此处</p>
             </div>
@@ -590,7 +574,7 @@
           <template v-if="selectedComponent">
             <el-form :model="selectedComponent" label-width="80px" size="small">
               <el-form-item label="字段名称">
-                <el-input v-model="selectedComponent.fieldName" />
+                <el-input v-model="selectedComponent.fieldName" :disabled="isViewMode" />
               </el-form-item>
               <el-form-item label="字段编码">
                 <el-input v-model="selectedComponent.fieldCode" disabled />
@@ -600,7 +584,7 @@
               </el-form-item>
               <el-divider>控件设置</el-divider>
               <el-form-item label="控件类型">
-                <el-select v-model="selectedComponent.componentType" style="width: 100%" @change="onComponentTypeChange(selectedComponent)">
+                <el-select v-model="selectedComponent.componentType" style="width: 100%" :disabled="isViewMode" @change="onComponentTypeChange(selectedComponent)">
                   <el-option v-for="type in getComponentTypeOptions(selectedComponent.domainId)" :key="type.value" :label="type.label" :value="type.value" />
                 </el-select>
               </el-form-item>
@@ -619,17 +603,17 @@
               </template>
               <el-divider>显示设置</el-divider>
               <el-form-item label="是否必填">
-                <el-switch v-model="selectedComponent.isRequired" />
+                <el-switch v-model="selectedComponent.isRequired" :disabled="isViewMode" />
               </el-form-item>
               <el-form-item label="是否只读">
-                <el-switch v-model="selectedComponent.isReadonly" />
+                <el-switch v-model="selectedComponent.isReadonly" :disabled="isViewMode" />
               </el-form-item>
               <el-form-item label="是否隐藏">
-                <el-switch v-model="selectedComponent.isHidden" />
+                <el-switch v-model="selectedComponent.isHidden" :disabled="isViewMode" />
               </el-form-item>
               <el-divider>布局设置</el-divider>
               <el-form-item label="占用列数">
-                <el-select v-model="selectedComponent.colSpan" style="width: 100%">
+                <el-select v-model="selectedComponent.colSpan" style="width: 100%" :disabled="isViewMode">
                   <el-option :value="1" label="1列（25%）" />
                   <el-option :value="2" label="2列（50%）" />
                   <el-option :value="3" label="3列（75%）" />
@@ -638,10 +622,10 @@
               </el-form-item>
               <el-divider>其他设置</el-divider>
               <el-form-item label="占位提示">
-                <el-input v-model="selectedComponent.placeholder" />
+                <el-input v-model="selectedComponent.placeholder" :disabled="isViewMode" />
               </el-form-item>
               <el-form-item label="默认值">
-                <el-input v-model="selectedComponent.defaultValue" />
+                <el-input v-model="selectedComponent.defaultValue" :disabled="isViewMode" />
               </el-form-item>
             </el-form>
           </template>
@@ -649,7 +633,7 @@
           <template v-else-if="selectedSubField">
             <el-form :model="selectedSubField" label-width="80px" size="small">
               <el-form-item label="字段名称">
-                <el-input v-model="selectedSubField.fieldName" />
+                <el-input v-model="selectedSubField.fieldName" :disabled="isViewMode" />
               </el-form-item>
               <el-form-item label="字段编码">
                 <el-input v-model="selectedSubField.fieldCode" disabled />
@@ -659,7 +643,7 @@
               </el-form-item>
               <el-divider>控件设置</el-divider>
               <el-form-item label="控件类型">
-                <el-select v-model="selectedSubField.componentType" style="width: 100%">
+                <el-select v-model="selectedSubField.componentType" style="width: 100%" :disabled="isViewMode">
                   <el-option v-for="type in getComponentTypeOptions(selectedSubField.domainId)" :key="type.value" :label="type.label" :value="type.value" />
                 </el-select>
               </el-form-item>
@@ -678,17 +662,17 @@
               </template>
               <el-divider>显示设置</el-divider>
               <el-form-item label="是否必填">
-                <el-switch v-model="selectedSubField.isRequired" />
+                <el-switch v-model="selectedSubField.isRequired" :disabled="isViewMode" />
               </el-form-item>
               <el-form-item label="是否只读">
-                <el-switch v-model="selectedSubField.isReadonly" />
+                <el-switch v-model="selectedSubField.isReadonly" :disabled="isViewMode" />
               </el-form-item>
               <el-divider>其他设置</el-divider>
               <el-form-item label="占位提示">
-                <el-input v-model="selectedSubField.placeholder" />
+                <el-input v-model="selectedSubField.placeholder" :disabled="isViewMode" />
               </el-form-item>
               <el-form-item label="默认值">
-                <el-input v-model="selectedSubField.defaultValue" />
+                <el-input v-model="selectedSubField.defaultValue" :disabled="isViewMode" />
               </el-form-item>
             </el-form>
           </template>
@@ -953,6 +937,7 @@ const route = useRoute()
 const router = useRouter()
 
 const formId = computed(() => Number(route.params.id))
+const isViewMode = computed(() => route.query.mode === 'view')
 
 // 表单数据
 const formData = reactive<FormDesignRequest>({
@@ -2178,6 +2163,15 @@ onMounted(() => {
   background: #f0f9eb;
 }
 
+.field-item.field-disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.field-item.field-disabled:hover {
+  background: transparent;
+}
+
 .added-tag {
   margin-left: auto;
 }
@@ -2315,6 +2309,19 @@ onMounted(() => {
   opacity: 0.5;
   border-style: solid;
   border-color: #409eff;
+}
+
+/* 查看模式样式 */
+.canvas.view-mode .canvas-cell {
+  cursor: default;
+}
+
+.canvas.view-mode .canvas-cell:hover {
+  border-color: #dcdfe6;
+}
+
+.canvas.view-mode .grid-cell {
+  cursor: default;
 }
 
 /* 右侧属性面板 */
