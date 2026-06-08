@@ -1,7 +1,8 @@
 import api from '@/api/index'
 
 /**
- * 数据实例接口
+ * 数据维护接口
+ * 从物理表读写数据
  */
 
 export interface DataInstanceDto {
@@ -19,43 +20,44 @@ export interface DataInstanceDto {
 }
 
 /**
- * 查询数据列表
+ * 查询数据列表（从物理表）
  */
 export function getInstanceList(params?: {
   categoryId?: number
-  formId?: number
+  formId: number
+  status?: string
 }) {
-  return api.get<DataInstanceDto[]>('/data-instance/list', { params })
+  return api.get<Map<string, any>[]>('/data/list', { params })
 }
 
 /**
- * 获取数据详情
+ * 获取数据详情（从物理表）
  */
-export function getInstanceById(id: number) {
-  return api.get<DataInstanceDto>(`/data-instance/${id}`)
+export function getInstanceById(formId: number, recordId: number) {
+  return api.get<Map<string, any>>(`/data/${formId}/${recordId}`)
 }
 
 /**
- * 保存数据
+ * 保存数据（到物理表）
  */
 export function saveInstance(data: {
   categoryId: number
   formId: number
   data: Record<string, any>
 }) {
-  return api.post<DataInstanceDto>('/data-instance', data)
+  return api.post<number>('/data', data)  // 返回主表记录ID
 }
 
 /**
- * 更新数据
+ * 更新数据（到物理表）
  */
-export function updateInstance(id: number, data: Record<string, any>) {
-  return api.put<DataInstanceDto>(`/data-instance/${id}`, { data })
+export function updateInstance(categoryId: number, formId: number, recordId: number, data: Record<string, any>) {
+  return api.put<void>(`/data/${categoryId}/${formId}/${recordId}`, { data })
 }
 
 /**
- * 删除数据
+ * 删除数据（软删除）
  */
-export function deleteInstance(id: number) {
-  return api.delete<void>(`/data-instance/${id}`)
+export function deleteInstance(categoryId: number, formId: number, recordId: number) {
+  return api.delete<void>(`/data/${categoryId}/${formId}/${recordId}`)
 }
