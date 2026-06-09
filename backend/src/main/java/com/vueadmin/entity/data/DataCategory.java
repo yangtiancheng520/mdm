@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @Entity
-@Table(name = "data_category")
+@Table(name = "mst_data_category")
 public class DataCategory {
 
     @Id

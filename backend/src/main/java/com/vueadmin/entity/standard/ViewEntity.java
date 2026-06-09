@@ -28,6 +28,9 @@ public class ViewEntity {
     @Column(name = "entity_type", nullable = false, length = 20)
     private String entityType; // main-主实体 sub-子实体
 
+    @Column(name = "table_name", length = 100)
+    private String tableName; // 物理表名
+
     // 子实体配置
     @Column(name = "sort")
     private Integer sort = 0;

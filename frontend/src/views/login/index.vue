@@ -54,6 +54,11 @@ async function handleLogin() {
 
 <template>
   <div class="yonbip-login">
+    <!-- 右上角LOGO -->
+    <div class="top-logo">
+      <img src="/智远工创.png" alt="智远工创" />
+    </div>
+
     <!-- 左侧文案区域 -->
     <div class="left-text-box">
       <div class="main-title">
@@ -323,6 +328,25 @@ async function handleLogin() {
   overflow: hidden;
   background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 50%, #f5f7fa 100%);
   position: relative;
+}
+
+/* 右上角LOGO */
+.top-logo {
+  position: absolute;
+  top: 24px;
+  right: 32px;
+  z-index: 100;
+}
+
+.top-logo img {
+  height: 28px;
+  width: auto;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.1));
+  transition: transform 0.3s ease;
+}
+
+.top-logo img:hover {
+  transform: scale(1.05);
 }
 
 /* 左侧文案区域 */
@@ -843,6 +867,10 @@ async function handleLogin() {
 
 /* 响应式 */
 @media (max-width: 1200px) {
+  .top-logo img {
+    height: 32px;
+  }
+
   .left-text-box {
     left: 6%;
   }
@@ -881,6 +909,15 @@ async function handleLogin() {
 }
 
 @media (max-width: 992px) {
+  .top-logo {
+    top: 16px;
+    right: 20px;
+  }
+
+  .top-logo img {
+    height: 28px;
+  }
+
   .left-text-box {
     display: none;
   }

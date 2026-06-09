@@ -2545,14 +2545,17 @@ onMounted(() => {
   border: 1px solid #e4e7ed;
   border-radius: 4px;
   min-height: 60px;
+  overflow-x: auto; /* 横向滚动 */
+  max-width: 100%; /* 限制最大宽度 */
 }
 
 .grid-header {
   display: flex;
   background: #f5f7fa;
   border-bottom: 1px solid #e4e7ed;
-  flex-wrap: wrap;
+  flex-wrap: nowrap; /* 不换行 */
   min-height: 40px;
+  min-width: max-content; /* 根据内容自动扩展 */
 }
 
 .drop-hint {
@@ -2568,7 +2571,7 @@ onMounted(() => {
 }
 
 .grid-cell {
-  flex: 1;
+  flex: 0 0 150px; /* 固定宽度 150px */
   padding: 8px 12px;
   font-size: 13px;
   color: #303133;
@@ -2576,9 +2579,41 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 4px;
-  min-width: 80px;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap; /* 不换行 */
+  overflow: hidden;
+  text-overflow: ellipsis; /* 超出显示省略号 */
+  box-sizing: border-box; /* 包含 padding */
+}
+
+/* 表头单元格内容 */
+.grid-header .grid-cell {
+  justify-content: space-between;
+}
+
+/* 表头拖拽图标 */
+.grid-header .grid-cell .drag-handle {
+  flex-shrink: 0;
+  cursor: move;
+  opacity: 0.5;
+}
+
+.grid-header .grid-cell:hover .drag-handle {
+  opacity: 1;
+}
+
+/* 表头字段名 */
+.grid-header .grid-cell > span:not(.el-button):not(.el-icon) {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 表头删除按钮 */
+.grid-header .grid-cell .el-button {
+  flex-shrink: 0;
 }
 
 .grid-cell:hover {
@@ -2615,6 +2650,7 @@ onMounted(() => {
   display: flex;
   border-bottom: 1px solid #ebeef5;
   pointer-events: auto; /* 恢复行的点击 */
+  min-width: max-content; /* 根据内容自动扩展 */
 }
 
 .grid-row:last-child {
@@ -2623,6 +2659,14 @@ onMounted(() => {
 
 .grid-row .grid-cell {
   padding: 8px 12px;
+  /* 继承父元素的固定宽度 */
+  flex: 0 0 150px;
+  box-sizing: border-box;
+}
+
+/* 表格内容区域的单元格内容居左 */
+.grid-body .grid-cell {
+  justify-content: flex-start;
 }
 
 /* 平铺布局 */

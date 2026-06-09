@@ -131,11 +131,31 @@
             <version>${groovy.version}</version>
         </dependency>
 
+        <!-- SAP JCo - 需要手动安装到本地Maven仓库 -->
+        <!-- 下载地址: https://support.sap.com/en/product/connectors/jco.html -->
+        <!-- 安装命令: mvn install:install-file -Dfile=sapjco3.jar -DgroupId=com.sap -DartifactId=sapjco3 -Dversion=3.1.2 -Dpackaging=jar -->
+        <dependency>
+            <groupId>com.sap</groupId>
+            <artifactId>sapjco3</artifactId>
+            <version>3.1.2</version>
+            <scope>provided</scope>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Spring Boot Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+        </dependency>
+
+        <!-- SAP JCo -->
+        <dependency>
+            <groupId>com.sap</groupId>
+            <artifactId>sapjco3</artifactId>
+            <version>3.0.17</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/lib/sapjco3.jar</systemPath>
         </dependency>
     </dependencies>
 

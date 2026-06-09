@@ -15,6 +15,7 @@ export interface ViewDefinition {
   enableCopy?: boolean
   enableImport?: boolean
   enableExport?: boolean
+  // 状态: draft(草稿), pending_approval(审批中), published(已发布), disabled(已停用), revising(修订中), history(历史版本)
   status?: string
   publishTime?: string
   tableName?: string // 主表物理表名
@@ -33,6 +34,7 @@ export interface ViewEntity {
   entityCode: string
   entityName: string
   entityType: 'main' | 'sub'
+  tableName?: string // 物理表名
   sort?: number
   minRows?: number
   maxRows?: number
@@ -160,6 +162,21 @@ export function updateView(id: number, data: ViewDefinition) {
   return api.put<{ code: number; data: ViewDefinition }>(`/standard/view/${id}`, data)
 }
 
+// 提交审批
+export function submitForApproval(id: number) {
+  return api.post<{ code: number; data: ViewDefinition }>(`/standard/view/${id}/submit`)
+}
+
+// 审批视图
+export function approveView(id: number, data: { approved: boolean; comment?: string }) {
+  return api.post<{ code: number; data: ViewDefinition }>(`/standard/view/${id}/approve`, data)
+}
+
+// 撤销审批
+export function cancelApproval(id: number) {
+  return api.post<{ code: number; data: ViewDefinition }>(`/standard/view/${id}/cancel`)
+}
+
 // 发布视图
 export function publishView(id: number) {
   return api.post<{ code: number; data: ViewDefinition }>(`/standard/view/${id}/publish`)
@@ -192,7 +209,7 @@ export function getVersionHistory(viewCode: string) {
 
 // 获取视图设计数据（包含实体和字段）
 export function getViewDesign(id: number) {
-  return api.get<{ code: number; data: ViewDefinition }>(`/standard/view/${id}/design`)
+  return api.get<{ code: number; data: ViewDefinition }>(`/standard/view/${id}`)
 }
 
 // 导出类型别名，方便使用

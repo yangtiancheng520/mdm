@@ -8,10 +8,11 @@ import api from '../index'
 export type DataType = 'string' | 'integer' | 'decimal' | 'boolean'
 
 // 值域状态
-export type DomainStatus = '启用' | '停用'
+export type DomainStatus = '草稿' | '启用'
 
 // 值域选项
 export interface DomainOption {
+  code: string     // 编码
   value: string    // 值
   label: string    // 显示名
   sort: number     // 排序
@@ -55,8 +56,8 @@ export const DATA_TYPE_OPTIONS = [
 
 // 状态选项
 export const DOMAIN_STATUS_OPTIONS = [
-  { label: '启用', value: '启用' },
-  { label: '停用', value: '停用' }
+  { label: '草稿', value: '草稿' },
+  { label: '启用', value: '启用' }
 ]
 
 // 查询参数接口
@@ -141,44 +142,61 @@ export function updateValueDomainOptions(id: number, options: DomainOption[]) {
 }
 
 /**
- * 校验选项值是否符合类型和长度要求
+ * 发布值域（草稿 -> 启用）
  */
-export function validateOptionValue(value: string, dataType: DataType, dataLength: number | null): { valid: boolean; message: string } {
-  if (!value) {
-    return { valid: false, message: '值不能为空' }
+export function publishValueDomain(id: number) {
+  return api.put<void>(`/value-domain/${id}/publish`)
+}
+
+/**
+ * 校验选项编码是否符合类型和长度要求
+ */
+export function validateOptionCode(code: string, dataType: DataType, dataLength: number | null): { valid: boolean; message: string } {
+  if (!code) {
+    return { valid: false, message: '编码不能为空' }
   }
 
   switch (dataType) {
     case 'string':
-      // 字符类型：校验长度不超过最大长度
-      if (dataLength && value.length > dataLength) {
-        return { valid: false, message: `值长度不能超过${dataLength}个字符` }
+      // 字符类型：校验编码长度不超过最大长度
+      if (dataLength && code.length > dataLength) {
+        return { valid: false, message: `编码长度不能超过${dataLength}个字符` }
       }
       return { valid: true, message: '' }
 
     case 'integer':
       // 整型：校验是否为整数
-      if (!/^-?\d+$/.test(value)) {
-        return { valid: false, message: '值必须是整数' }
+      if (!/^-?\d+$/.test(code)) {
+        return { valid: false, message: '编码必须是整数' }
       }
       return { valid: true, message: '' }
 
     case 'decimal':
       // 浮点型：校验是否为数字
-      if (!/^-?\d+(\.\d+)?$/.test(value)) {
-        return { valid: false, message: '值必须是数字' }
+      if (!/^-?\d+(\.\d+)?$/.test(code)) {
+        return { valid: false, message: '编码必须是数字' }
       }
       return { valid: true, message: '' }
 
     case 'boolean':
       // 布尔：校验是否为 true/false 或 是/否
-      const validBoolean = ['true', 'false', '是', '否', '1', '0'].includes(value.toLowerCase())
+      const validBoolean = ['true', 'false', '是', '否', '1', '0'].includes(code.toLowerCase())
       if (!validBoolean) {
-        return { valid: false, message: '值必须是 true/false 或 是/否' }
+        return { valid: false, message: '编码必须是 true/false 或 是/否' }
       }
       return { valid: true, message: '' }
 
     default:
       return { valid: true, message: '' }
   }
+}
+
+/**
+ * 校验选项值是否符合要求（项值不做长度限制）
+ */
+export function validateOptionValue(value: string): { valid: boolean; message: string } {
+  if (!value) {
+    return { valid: false, message: '项值不能为空' }
+  }
+  return { valid: true, message: '' }
 }

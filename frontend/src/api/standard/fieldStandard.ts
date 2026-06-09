@@ -16,7 +16,7 @@ export type FieldType =
   | 'text'        // 长文本
 
 // 字段状态
-export type FieldStatus = '启用' | '停用'
+export type FieldStatus = '草稿' | '启用'
 
 // 格式类型（预设校验格式）
 export type FormatType = 'none' | 'mobile' | 'email' | 'idcard' | 'custom'
@@ -93,8 +93,8 @@ export function getFieldTypeConfig(value: FieldType) {
 
 // 字段状态选项
 export const FIELD_STATUS_OPTIONS = [
-  { label: '启用', value: '启用' },
-  { label: '停用', value: '停用' }
+  { label: '草稿', value: '草稿' },
+  { label: '启用', value: '启用' }
 ]
 
 // 查询参数接口
@@ -155,6 +155,13 @@ export function deleteFieldStandard(id: number) {
  */
 export function batchDeleteFieldStandard(ids: number[]) {
   return api.delete<void>('/field-standard/batch', { data: { ids } })
+}
+
+/**
+ * 发布字段标准（草稿 -> 启用）
+ */
+export function publishFieldStandard(id: number) {
+  return api.put<void>(`/field-standard/${id}/publish`)
 }
 
 /**

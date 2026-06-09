@@ -103,13 +103,16 @@
 /* ==================== 表格样式 ==================== */
 .mdm-table-wrapper {
   flex: 1;
-  overflow-y: auto;
+  overflow: auto;
+  background: #fff;
+  border-radius: 4px;
 }
 
 .mdm-data-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+  min-width: max-content;
 }
 
 .mdm-data-table th {

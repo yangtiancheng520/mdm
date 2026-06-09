@@ -12,6 +12,8 @@ import {
   updateValueDomainOptions,
   deleteValueDomain,
   batchDeleteValueDomain,
+  publishValueDomain,
+  validateOptionCode,
   validateOptionValue,
   type ValueDomain,
   type ValueDomainForm,
@@ -54,7 +56,7 @@ const form = ref<ValueDomainForm>({
   dataType: 'string',
   dataLength: null,
   options: [],
-  status: '启用',
+  status: '草稿',
   description: ''
 })
 
@@ -90,7 +92,7 @@ function getStatusLabel(status: DomainStatus) {
 
 // 获取状态样式
 const getStatusClass = (status: DomainStatus) => {
-  return status === '启用' ? 'status-active' : 'status-inactive'
+  return status === '启用' ? 'status-active' : 'status-draft'
 }
 
 // 获取值域列表
@@ -141,7 +143,7 @@ function handleAdd() {
     dataType: 'string',
     dataLength: null,
     options: [],
-    status: '启用',
+    status: '草稿',
     description: ''
   }
   dialogVisible.value = true
@@ -179,12 +181,19 @@ async function handleSave() {
     return
   }
 
-  // 编辑时校验已有选项值是否符合新的长度要求
+  // 编辑时校验已有选项编码和项值是否符合要求
   if (form.value.id && form.value.options && form.value.options.length > 0) {
     for (const opt of form.value.options) {
-      const result = validateOptionValue(opt.value, form.value.dataType, form.value.dataLength)
-      if (!result.valid) {
-        ElMessage.warning(`选项值"${opt.value}"不符合要求：${result.message}`)
+      // 校验编码
+      const codeResult = validateOptionCode(opt.code, form.value.dataType, form.value.dataLength)
+      if (!codeResult.valid) {
+        ElMessage.warning(`选项编码"${opt.code}"不符合要求：${codeResult.message}`)
+        return
+      }
+      // 校验项值
+      const valueResult = validateOptionValue(opt.value)
+      if (!valueResult.valid) {
+        ElMessage.warning(`选项项值"${opt.value}"不符合要求：${valueResult.message}`)
         return
       }
     }
@@ -212,14 +221,14 @@ function handleManageOptions(row: ValueDomain) {
   form.value.dataType = row.dataType
   form.value.dataLength = row.dataLength
   editingOptions.value = row.options && row.options.length > 0
-    ? row.options.map((opt, idx) => ({ ...opt, sort: idx + 1 }))
-    : [{ value: '', sort: 1 }]
+    ? row.options.map((opt, idx) => ({ ...opt, code: opt.code || '', sort: idx + 1 }))
+    : [{ code: '', value: '', sort: 1 }]
   optionsDialogVisible.value = true
 }
 
 // 添加选项
 function handleAddOption() {
-  editingOptions.value.push({ value: '', sort: editingOptions.value.length + 1 })
+  editingOptions.value.push({ code: '', value: '', sort: editingOptions.value.length + 1 })
 }
 
 // 删除选项
@@ -267,11 +276,18 @@ async function handleSubmitOptions() {
     return
   }
 
-  // 校验所有选项值
+  // 校验所有选项编码和项值
   for (const opt of validOptions) {
-    const result = validateOptionValue(opt.value, form.value.dataType, form.value.dataLength)
-    if (!result.valid) {
-      ElMessage.warning(`选项值"${opt.value}"不合法：${result.message}`)
+    // 校验编码
+    const codeResult = validateOptionCode(opt.code, form.value.dataType, form.value.dataLength)
+    if (!codeResult.valid) {
+      ElMessage.warning(`选项编码"${opt.code}"不合法：${codeResult.message}`)
+      return
+    }
+    // 校验项值
+    const valueResult = validateOptionValue(opt.value)
+    if (!valueResult.valid) {
+      ElMessage.warning(`选项项值"${opt.value}"不合法：${valueResult.message}`)
       return
     }
   }
@@ -297,6 +313,21 @@ function handleDelete(row: ValueDomain) {
       fetchData()
     } catch (error: any) {
       ElMessage.error(error.response?.data?.message || '删除失败')
+    }
+  }
+  confirmVisible.value = true
+}
+
+// 发布（草稿 -> 启用）
+function handlePublish(row: ValueDomain) {
+  confirmMessage.value = `确定要发布值域「${row.domainName}」吗？发布后将不可修改和删除。`
+  confirmAction.value = async () => {
+    try {
+      await publishValueDomain(row.id)
+      ElMessage.success('发布成功')
+      fetchData()
+    } catch (error: any) {
+      ElMessage.error(error.response?.data?.message || '发布失败')
     }
   }
   confirmVisible.value = true
@@ -454,9 +485,18 @@ onMounted(() => {
             <td>{{ row.createdAt }}</td>
             <td>
               <div class="mdm-action-buttons">
-                <button class="mdm-action-btn" @click="handleEdit(row)">编辑</button>
-                <button class="mdm-action-btn" @click="handleManageOptions(row)">值域项</button>
-                <button class="mdm-action-btn delete" @click="handleDelete(row)">删除</button>
+                <!-- 草稿状态：可以编辑、发布、删除 -->
+                <template v-if="row.status === '草稿'">
+                  <button class="mdm-action-btn" @click="handleEdit(row)">编辑</button>
+                  <button class="mdm-action-btn" @click="handleManageOptions(row)">值域项</button>
+                  <button class="mdm-action-btn" @click="handlePublish(row)">发布</button>
+                  <button class="mdm-action-btn delete" @click="handleDelete(row)">删除</button>
+                </template>
+                <!-- 启用状态：可以编辑、维护值域项，但不能删除 -->
+                <template v-else-if="row.status === '启用'">
+                  <button class="mdm-action-btn" @click="handleEdit(row)">编辑</button>
+                  <button class="mdm-action-btn" @click="handleManageOptions(row)">值域项</button>
+                </template>
               </div>
             </td>
           </tr>
@@ -505,14 +545,6 @@ onMounted(() => {
         <input v-model.number="form.dataLength" type="number" class="mdm-input-normal" placeholder="请输入长度" />
       </div>
       <div class="mdm-form-row">
-        <div class="mdm-form-label">状态</div>
-        <select v-model="form.status" class="mdm-select">
-          <option v-for="opt in DOMAIN_STATUS_OPTIONS" :key="opt.value" :value="opt.value">
-            {{ opt.label }}
-          </option>
-        </select>
-      </div>
-      <div class="mdm-form-row">
         <div class="mdm-form-label">描述</div>
         <textarea v-model="form.description" class="mdm-textarea" placeholder="请输入描述"></textarea>
       </div>
@@ -524,11 +556,12 @@ onMounted(() => {
     </MdmDialog>
 
     <!-- 值域项配置弹窗 -->
-    <MdmDialog v-model="optionsDialogVisible" title="维护值域项" width="500px">
+    <MdmDialog v-model="optionsDialogVisible" title="维护值域项" width="600px">
       <div class="options-table">
         <div class="options-header">
           <span class="col-index"></span>
-          <span class="col-value">值</span>
+          <span class="col-code">编码</span>
+          <span class="col-value">项值</span>
           <span class="col-action">操作</span>
         </div>
         <div class="options-body">
@@ -543,7 +576,8 @@ onMounted(() => {
             @dragend="handleDragEnd"
           >
             <span class="col-index-num">{{ index + 1 }}</span>
-            <input v-model="opt.value" class="col-value-input" placeholder="值" />
+            <input v-model="opt.code" class="col-code-input" placeholder="编码" />
+            <input v-model="opt.value" class="col-value-input" placeholder="项值" />
             <div class="col-action-btns">
               <span class="drag-handle" title="拖拽排序">⋮⋮</span>
               <button class="mdm-btn-outline-sm" @click="handleRemoveOption(index)">删除</button>
@@ -592,10 +626,10 @@ onMounted(() => {
   color: #52c41a;
 }
 
-.status-inactive {
-  background: #fff5f5;
-  border-color: #ffa39e;
-  color: #ed2b33;
+.status-draft {
+  background: #fffbe6;
+  border-color: #ffe58f;
+  color: #faad14;
 }
 
 // 选项配置样式
@@ -608,6 +642,7 @@ onMounted(() => {
     color: #333;
 
     .col-index { width: 40px; padding-left: 5px; }
+    .col-code { width: 120px; padding-left: 10px; }
     .col-value { flex: 1; padding-left: 10px; }
     .col-action { width: 100px; text-align: center; }
   }
@@ -633,6 +668,12 @@ onMounted(() => {
       text-align: center;
       color: #666;
       font-size: 13px;
+    }
+
+    .col-code-input {
+      width: 120px;
+      padding: 6px 8px;
+      margin-right: 10px;
     }
 
     .col-value-input {

@@ -3,8 +3,8 @@
  * 编码规则管理页面
  */
 
-import { ref, onMounted, computed } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref, onMounted, computed, watch } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getEncodingRuleList,
   createEncodingRule,
@@ -19,6 +19,10 @@ import {
   SEGMENT_TYPE_OPTIONS,
   RESET_CYCLE_OPTIONS
 } from '../../../api/standard/encodingRule'
+import {
+  getActiveFieldStandardList,
+  type FieldStandard
+} from '../../../api/standard/fieldStandard'
 import MdmDialog from '../../../components/MdmDialog.vue'
 import MdmConfirmDialog from '../../../components/MdmConfirmDialog.vue'
 
@@ -38,6 +42,8 @@ const searchForm = ref({
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增编码规则')
 const segmentDialogVisible = ref(false)
+const fieldSearchDialogVisible = ref(false)  // 字段搜索弹窗
+const fieldSearchType = ref('')  // 当前搜索的字段类型
 
 // 确认对话框
 const confirmVisible = ref(false)
@@ -51,7 +57,7 @@ const form = ref<EncodingRuleForm>({
   ruleDefinition: {
     segments: []
   },
-  status: 'active',
+  status: 'draft',  // 新建时默认为草稿
   example: '',
   description: ''
 })
@@ -64,19 +70,125 @@ const currentSegmentIndex = ref(-1)
 const previewData = ref<Record<string, any>>({})
 const previewResult = ref('')
 
+// 字段标准库列表（用于选择字段）
+const fieldStandardList = ref<FieldStandard[]>([])
+const fieldSearchKeyword = ref('')
+
+// 过滤后的字段列表
+const filteredFieldList = computed(() => {
+  if (!fieldSearchKeyword.value) {
+    return fieldStandardList.value
+  }
+  const keyword = fieldSearchKeyword.value.toLowerCase()
+  return fieldStandardList.value.filter(field =>
+    field.fieldName?.toLowerCase().includes(keyword) ||
+    field.fieldCode?.toLowerCase().includes(keyword)
+  )
+})
+
+// 根据ID获取字段名称
+function getFieldNameById(fieldId: number): string {
+  const field = fieldStandardList.value.find(f => f.id === fieldId)
+  return field ? `${field.fieldName} (${field.fieldCode})` : ''
+}
+
+// 打开字段搜索弹窗
+function openFieldSearchDialog(type: string) {
+  fieldSearchType.value = type
+  fieldSearchKeyword.value = ''
+  fieldSearchDialogVisible.value = true
+}
+
+// 选择字段
+function handleSelectField(field: FieldStandard) {
+  if (currentSegment.value) {
+    currentSegment.value.config.fieldId = field.id
+    currentSegment.value.config.fieldCode = field.fieldCode
+    currentSegment.value.config.fieldName = field.fieldName
+  }
+  fieldSearchDialogVisible.value = false
+}
+
+// 清除已选字段
+function clearSelectedField() {
+  if (currentSegment.value) {
+    currentSegment.value.config.fieldId = null
+    currentSegment.value.config.fieldCode = null
+    currentSegment.value.config.fieldName = null
+  }
+}
+
+// 复制条件规则样例
+function copyConditionExample() {
+  const example = `[
+  {"when":"产成品","then":"5"},
+  {"when":"原材料","then":"1"},
+  {"when":"半成品","then":"3"}
+]`
+  navigator.clipboard.writeText(example).then(() => {
+    ElMessage.success('已复制到剪贴板')
+  }).catch(() => {
+    ElMessage.warning('复制失败，请手动复制')
+  })
+}
+
 // 分页
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 
+// 加载值域列表
+async function loadDomainList() {
+  try {
+    const res = await getActiveValueDomainList()
+    domainList.value = res.data || []
+  } catch (error) {
+    console.error('加载值域列表失败:', error)
+  }
+}
+
+// 加载字段标准库列表
+async function loadFieldStandardList() {
+  try {
+    const res = await getActiveFieldStandardList()
+    fieldStandardList.value = res.data || []
+  } catch (error) {
+    console.error('加载字段标准库列表失败:', error)
+  }
+}
+
+// 获取值域选项
+async function loadDomainOptions(domainId: number) {
+  if (!domainId || domainOptionsMap.value.has(domainId)) return
+  try {
+    const res = await getValueDomainById(domainId)
+    domainOptionsMap.value.set(domainId, res.data?.options || [])
+  } catch (error) {
+    console.error('加载值域选项失败:', error)
+  }
+}
+
+// 获取值域选项列表
+function getDomainOptionsById(domainId: number): DomainOption[] {
+  return domainOptionsMap.value.get(domainId) || []
+}
+
 // 获取状态标签
 const getStatusLabel = (status: string) => {
-  return status === 'active' ? '启用' : '停用'
+  switch (status) {
+    case 'draft': return '草稿'
+    case 'active': return '启用'
+    default: return status
+  }
 }
 
 // 获取状态样式
 const getStatusClass = (status: string) => {
-  return status === 'active' ? 'status-active' : 'status-inactive'
+  switch (status) {
+    case 'draft': return 'status-draft'
+    case 'active': return 'status-active'
+    default: return ''
+  }
 }
 
 // 获取规则段类型标签
@@ -132,7 +244,7 @@ function handleAdd() {
     ruleDefinition: {
       segments: []
     },
-    status: 'active',
+    status: 'draft',  // 新建时默认为草稿
     example: '',
     description: ''
   }
@@ -158,6 +270,22 @@ function handleEdit(row: EncodingRule) {
   previewData.value = {}
   previewResult.value = ''
   dialogVisible.value = true
+}
+
+// 发布规则
+async function handlePublish(row: EncodingRule) {
+  try {
+    await ElMessageBox.confirm('确定要发布该编码规则吗？发布后将无法删除。', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    await updateEncodingRule(row.id, { ...row, status: 'active' })
+    ElMessage.success('发布成功')
+    fetchData()
+  } catch {
+    // 用户取消
+  }
 }
 
 // 保存
@@ -188,6 +316,11 @@ async function handleSave() {
 
 // 删除
 function handleDelete(row: EncodingRule) {
+  // 启用状态不能删除
+  if (row.status === 'active') {
+    ElMessage.warning('启用状态的规则不能删除')
+    return
+  }
   confirmMessage.value = `确定要删除编码规则「${row.ruleName}」吗？`
   confirmAction.value = async () => {
     try {
@@ -302,21 +435,12 @@ function handleSegmentTypeChange() {
       }
     } else if (currentSegment.value.type === 'conditional') {
       currentSegment.value.config = {
-        field: '',
-        rulesJson: '[\n  {"when": "值1", "then": "结果1"},\n  {"when": "值2", "then": "结果2"}\n]',
-        default: ''
-      }
-    } else if (currentSegment.value.type === 'category') {
-      currentSegment.value.config = {
-        field: '',
-        mappingJson: '{\n  "分类值1": "编码1",\n  "分类值2": "编码2"\n}',
-        default: ''
-      }
-    } else if (currentSegment.value.type === 'field') {
-      currentSegment.value.config = {
-        source: '',
-        length: null,
-        padding: ''
+        fieldId: null,
+        fieldCode: null,
+        fieldName: null,
+        rulesJson: '',
+        length: 2,
+        padding: '0'
       }
     }
   }
@@ -339,41 +463,23 @@ function handleEditSegment(index: number) {
   currentSegment.value = JSON.parse(JSON.stringify(segment))
 
   // 条件值：将rules数组转为JSON字符串便于编辑
-  if (currentSegment.value.type === 'conditional' && currentSegment.value.config.rules) {
-    currentSegment.value.config.rulesJson = JSON.stringify(currentSegment.value.config.rules, null, 2)
-  }
-  // 分类编码：将mapping对象转为JSON字符串便于编辑
-  if (currentSegment.value.type === 'category' && currentSegment.value.config.mapping) {
-    currentSegment.value.config.mappingJson = JSON.stringify(currentSegment.value.config.mapping, null, 2)
+  if (currentSegment.value.type === 'conditional') {
+    if (currentSegment.value.config.rules) {
+      currentSegment.value.config.rulesJson = JSON.stringify(currentSegment.value.config.rules, null, 2)
+    } else {
+      currentSegment.value.config.rulesJson = ''
+    }
+    // 确保编辑时也有默认值
+    if (!currentSegment.value.config.length || currentSegment.value.config.length < 1) {
+      currentSegment.value.config.length = 2
+    }
+    if (!currentSegment.value.config.padding) {
+      currentSegment.value.config.padding = '0'
+    }
   }
 
   currentSegmentIndex.value = index
   segmentDialogVisible.value = true
-}
-
-// 删除规则段
-function handleDeleteSegment(index: number) {
-  form.value.ruleDefinition.segments.splice(index, 1)
-}
-
-// 上移规则段
-function handleMoveUpSegment(index: number) {
-  if (index > 0) {
-    const segments = form.value.ruleDefinition.segments
-    const temp = segments[index]
-    segments[index] = segments[index - 1]
-    segments[index - 1] = temp
-  }
-}
-
-// 下移规则段
-function handleMoveDownSegment(index: number) {
-  const segments = form.value.ruleDefinition.segments
-  if (index < segments.length - 1) {
-    const temp = segments[index]
-    segments[index] = segments[index + 1]
-    segments[index + 1] = temp
-  }
 }
 
 // 保存规则段
@@ -385,24 +491,58 @@ function handleSaveSegment() {
     return
   }
 
-  // 条件值：解析JSON字符串为数组
-  if (currentSegment.value.type === 'conditional' && currentSegment.value.config.rulesJson) {
-    try {
-      currentSegment.value.config.rules = JSON.parse(currentSegment.value.config.rulesJson)
-      delete currentSegment.value.config.rulesJson
-    } catch (e) {
-      ElMessage.warning('条件规则JSON格式错误')
+  // 条件值：必须选择字段且设置条件规则
+  if (currentSegment.value.type === 'conditional') {
+    if (!currentSegment.value.config.fieldId) {
+      ElMessage.warning('请选择字段')
       return
     }
-  }
-
-  // 分类编码：解析JSON字符串为对象
-  if (currentSegment.value.type === 'category' && currentSegment.value.config.mappingJson) {
+    // 必须输入输出长度且大于0
+    if (!currentSegment.value.config.length || currentSegment.value.config.length < 1) {
+      ElMessage.warning('输出长度必须大于0')
+      return
+    }
+    // 必须输入默认值
+    if (!currentSegment.value.config.defaultValue || String(currentSegment.value.config.defaultValue).trim() === '') {
+      ElMessage.warning('请输入默认值')
+      return
+    }
+    // 验证默认值长度不能大于输出长度
+    if (currentSegment.value.config.defaultValue) {
+      const defaultLen = String(currentSegment.value.config.defaultValue).length
+      if (defaultLen > currentSegment.value.config.length) {
+        ElMessage.warning(`默认值长度(${defaultLen})不能大于输出长度(${currentSegment.value.config.length})`)
+        return
+      }
+    }
+    // 必须输入条件规则
+    if (!currentSegment.value.config.rulesJson || currentSegment.value.config.rulesJson.trim() === '') {
+      ElMessage.warning('请设置条件规则')
+      return
+    }
+    // 解析JSON字符串为数组
     try {
-      currentSegment.value.config.mapping = JSON.parse(currentSegment.value.config.mappingJson)
-      delete currentSegment.value.config.mappingJson
+      const rules = JSON.parse(currentSegment.value.config.rulesJson)
+      if (!Array.isArray(rules) || rules.length === 0) {
+        ElMessage.warning('条件规则不能为空')
+        return
+      }
+      // 验证每个规则格式
+      for (const rule of rules) {
+        if (!rule.when || rule.then === undefined || rule.then === null || rule.then === '') {
+          ElMessage.warning('条件规则格式错误：每条规则必须包含 when 和 then')
+          return
+        }
+        // 验证then值的长度不能大于输出长度
+        const thenLen = String(rule.then).length
+        if (thenLen > currentSegment.value.config.length) {
+          ElMessage.warning(`条件规则中"${rule.when}"的输出值长度(${thenLen})不能大于输出长度(${currentSegment.value.config.length})`)
+          return
+        }
+      }
+      currentSegment.value.config.rules = rules
     } catch (e) {
-      ElMessage.warning('映射配置JSON格式错误')
+      ElMessage.warning('条件规则JSON格式错误')
       return
     }
   }
@@ -414,6 +554,131 @@ function handleSaveSegment() {
   }
 
   segmentDialogVisible.value = false
+
+  // 实时更新预览
+  updatePreview()
+}
+
+// 实时预览 - 本地模拟生成
+function updatePreview() {
+  if (!form.value.ruleDefinition.segments || form.value.ruleDefinition.segments.length === 0) {
+    form.value.example = ''
+    return
+  }
+
+  const result: string[] = []
+  const now = new Date()
+
+  for (const segment of form.value.ruleDefinition.segments) {
+    const segmentResult = simulateSegment(segment, now)
+    result.push(segmentResult)
+  }
+
+  form.value.example = result.join('')
+}
+
+// 模拟单个规则段的输出
+function simulateSegment(segment: SegmentConfig, now: Date): string {
+  const config = segment.config || {}
+
+  switch (segment.type) {
+    case 'fixed':
+      return config.value || ''
+
+    case 'date':
+      const format = config.format || 'yyyyMMdd'
+      return formatDate(now, format)
+
+    case 'sequence':
+      const length = config.length || 4
+      const padding = config.padding || '0'
+      const start = config.start || 1
+      return String(start).padStart(length, padding)
+
+    case 'conditional':
+      // 模拟第一个条件结果
+      let condResult = ''
+      if (config.rules && Array.isArray(config.rules) && config.rules.length > 0) {
+        condResult = String(config.rules[0].then || '')
+      } else if (config.defaultValue) {
+        // 如果没有规则但有默认值，使用默认值
+        condResult = String(config.defaultValue)
+      }
+      // 如果配置了长度，则补齐
+      if (config.length && config.length > 0) {
+        const padding = config.padding || '0'
+        condResult = condResult.padStart(config.length, padding)
+      }
+      return condResult
+
+    case 'random':
+      const randLength = config.length || 4
+      return generateRandomString(randLength)
+
+    default:
+      return ''
+  }
+}
+
+// 格式化日期
+function formatDate(date: Date, format: string): string {
+  const year = date.getFullYear()
+  const yearShort = String(year).slice(-2)  // 两位年份
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+
+  return format
+    .replace('yyyy', String(year))
+    .replace('YYYY', String(year))
+    .replace('yy', yearShort)
+    .replace('YY', yearShort)
+    .replace('MM', month)
+    .replace('dd', day)
+    .replace('DD', day)
+    .replace('HH', hours)
+    .replace('mm', minutes)
+    .replace('ss', seconds)
+}
+
+// 生成随机字符串
+function generateRandomString(length: number): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  let result = ''
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
+}
+
+// 删除规则段时也更新预览
+function handleDeleteSegment(index: number) {
+  form.value.ruleDefinition.segments.splice(index, 1)
+  updatePreview()
+}
+
+// 上移规则段时也更新预览
+function handleMoveUpSegment(index: number) {
+  if (index > 0) {
+    const segments = form.value.ruleDefinition.segments
+    const temp = segments[index]
+    segments[index] = segments[index - 1]
+    segments[index - 1] = temp
+    updatePreview()
+  }
+}
+
+// 下移规则段时也更新预览
+function handleMoveDownSegment(index: number) {
+  const segments = form.value.ruleDefinition.segments
+  if (index < segments.length - 1) {
+    const temp = segments[index]
+    segments[index] = segments[index + 1]
+    segments[index + 1] = temp
+    updatePreview()
+  }
 }
 
 // 预览编码
@@ -434,7 +699,13 @@ async function handlePreview() {
 
 onMounted(() => {
   fetchData()
+  loadFieldStandardList()  // 加载字段标准库列表
 })
+
+// 点击外部关闭下拉框
+function handleClickOutside(e: MouseEvent) {
+  // 不再需要
+}
 </script>
 
 <template>
@@ -451,8 +722,8 @@ onMounted(() => {
         <div class="mdm-filter-item">
           <select v-model="searchForm.status" @change="handleSearch">
             <option value="">全部状态</option>
+            <option value="draft">草稿</option>
             <option value="active">启用</option>
-            <option value="inactive">停用</option>
           </select>
         </div>
       </div>
@@ -497,8 +768,16 @@ onMounted(() => {
             </td>
             <td>
               <div class="mdm-action-buttons">
-                <button class="mdm-action-btn" @click="handleEdit(row)">编辑</button>
-                <button class="mdm-action-btn delete" @click="handleDelete(row)">删除</button>
+                <!-- 草稿状态：编辑、发布、删除 -->
+                <template v-if="row.status === 'draft'">
+                  <button class="mdm-action-btn" @click="handleEdit(row)">编辑</button>
+                  <button class="mdm-action-btn publish" @click="handlePublish(row)">发布</button>
+                  <button class="mdm-action-btn delete" @click="handleDelete(row)">删除</button>
+                </template>
+                <!-- 启用状态：编辑（不能删除） -->
+                <template v-else-if="row.status === 'active'">
+                  <button class="mdm-action-btn" @click="handleEdit(row)">编辑</button>
+                </template>
               </div>
             </td>
           </tr>
@@ -569,8 +848,8 @@ onMounted(() => {
       <div class="mdm-form-row">
         <div class="mdm-form-label">状态</div>
         <select v-model="form.status" class="mdm-select">
+          <option value="draft">草稿</option>
           <option value="active">启用</option>
-          <option value="inactive">停用</option>
         </select>
       </div>
       <div class="mdm-form-row">
@@ -664,54 +943,89 @@ onMounted(() => {
       <!-- 条件值配置 -->
       <template v-if="currentSegment?.type === 'conditional'">
         <div class="mdm-form-row">
-          <div class="mdm-form-label required"><em>*</em>条件字段</div>
-          <input v-model="currentSegment.config.field" class="mdm-input-normal" placeholder="业务字段名，如: materialType" />
+          <div class="mdm-form-label required"><em>*</em>选择字段</div>
+          <div class="field-select-box">
+            <template v-if="currentSegment.config.fieldId">
+              <span class="selected-field-text">{{ getFieldNameById(currentSegment.config.fieldId) }}</span>
+              <button class="clear-field-btn" @click="clearSelectedField">×</button>
+            </template>
+            <button v-else class="select-field-btn" @click="openFieldSearchDialog('conditional')">选择字段</button>
+          </div>
         </div>
-        <div class="mdm-form-row">
+        <div class="mdm-form-row" v-if="currentSegment.config.fieldId">
           <div class="mdm-form-label">条件规则</div>
-          <textarea v-model="currentSegment.config.rulesJson" class="mdm-textarea" rows="4" placeholder='[{"when":"产成品","then":"5"}]'></textarea>
+          <div class="condition-rules-wrapper">
+            <textarea v-model="currentSegment.config.rulesJson" class="mdm-textarea" rows="4" placeholder='[{"when":"产成品","then":"5"}]'></textarea>
+            <div class="condition-example">
+              <div class="example-header">
+                <span>样例（点击复制）</span>
+              </div>
+              <pre class="example-code" @click="copyConditionExample">[
+  {"when":"产成品","then":"5"},
+  {"when":"原材料","then":"1"},
+  {"when":"半成品","then":"3"}
+]</pre>
+            </div>
+          </div>
+          <div class="field-tip">格式：JSON数组，when为字段值，then为输出编码</div>
         </div>
         <div class="mdm-form-row">
-          <div class="mdm-form-label">默认值</div>
-          <input v-model="currentSegment.config.default" class="mdm-input-normal" placeholder="未匹配时的默认值" />
-        </div>
-      </template>
-
-      <!-- 字段引用配置 -->
-      <template v-if="currentSegment?.type === 'field'">
-        <div class="mdm-form-row">
-          <div class="mdm-form-label required"><em>*</em>引用字段</div>
-          <input v-model="currentSegment.config.source" class="mdm-input-normal" placeholder="业务字段名" />
+          <div class="mdm-form-label required"><em>*</em>输出长度</div>
+          <input v-model.number="currentSegment.config.length" type="number" class="mdm-input-yellow" placeholder="如: 2" min="1" />
         </div>
         <div class="mdm-form-row">
-          <div class="mdm-form-label">长度限制</div>
-          <input v-model.number="currentSegment.config.length" type="number" class="mdm-input-normal" placeholder="不限制请留空" />
+          <div class="mdm-form-label required"><em>*</em>默认值</div>
+          <input v-model="currentSegment.config.defaultValue" class="mdm-input-yellow" placeholder="条件不匹配时的默认值" />
+          <div class="field-tip" v-if="currentSegment.config.defaultValue && currentSegment.config.length && currentSegment.config.defaultValue.length > currentSegment.config.length" style="color: #ff4d4f;">
+            ⚠️ 默认值长度({{ currentSegment.config.defaultValue.length }})不能大于输出长度({{ currentSegment.config.length }})
+          </div>
         </div>
         <div class="mdm-form-row">
           <div class="mdm-form-label">填充字符</div>
-          <input v-model="currentSegment.config.padding" class="mdm-input-normal" placeholder="不足时填充" />
-        </div>
-      </template>
-
-      <!-- 分类编码配置 -->
-      <template v-if="currentSegment?.type === 'category'">
-        <div class="mdm-form-row">
-          <div class="mdm-form-label required"><em>*</em>分类字段</div>
-          <input v-model="currentSegment.config.field" class="mdm-input-normal" placeholder="分类字段名，如: materialGroup" />
-        </div>
-        <div class="mdm-form-row">
-          <div class="mdm-form-label">映射配置</div>
-          <textarea v-model="currentSegment.config.mappingJson" class="mdm-textarea" rows="4" placeholder='{"分类值":"编码"}'></textarea>
-        </div>
-        <div class="mdm-form-row">
-          <div class="mdm-form-label">默认值</div>
-          <input v-model="currentSegment.config.default" class="mdm-input-normal" placeholder="未匹配时的默认值" />
+          <input v-model="currentSegment.config.padding" class="mdm-input-normal" placeholder="默认: 0" maxlength="1" />
         </div>
       </template>
 
       <template #footer>
         <button class="mdm-btn-cancel" @click="segmentDialogVisible = false">取消</button>
         <button class="mdm-btn-primary" @click="handleSaveSegment">保存</button>
+      </template>
+    </MdmDialog>
+
+    <!-- 字段搜索弹窗 -->
+    <MdmDialog v-model="fieldSearchDialogVisible" title="选择字段" width="500px">
+      <div class="field-search-box">
+        <input
+          v-model="fieldSearchKeyword"
+          class="field-search-input"
+          placeholder="输入字段名称或编码搜索..."
+          autofocus
+        />
+        <div class="field-search-list">
+          <div
+            class="field-search-item"
+            v-for="field in filteredFieldList"
+            :key="field.id"
+            @click="handleSelectField(field)"
+          >
+            <div class="field-info">
+              <span class="field-name">{{ field.fieldName }}</span>
+              <span class="field-code">{{ field.fieldCode }}</span>
+            </div>
+            <div class="field-type">{{ field.fieldType }}</div>
+          </div>
+          <div class="field-search-empty" v-if="filteredFieldList.length === 0">
+            <template v-if="fieldSearchKeyword">
+              未找到匹配的字段
+            </template>
+            <template v-else>
+              暂无字段数据
+            </template>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <button class="mdm-btn-cancel" @click="fieldSearchDialogVisible = false">取消</button>
       </template>
     </MdmDialog>
 
@@ -742,16 +1056,51 @@ onMounted(() => {
   border: 1px solid;
 }
 
+.status-draft {
+  background: #fffbe6;
+  border-color: #ffe58f;
+  color: #faad14;
+}
+
 .status-active {
   background: #f6ffed;
   border-color: #b7eb8f;
   color: #52c41a;
 }
 
-.status-inactive {
-  background: #fff5f5;
-  border-color: #ffa39e;
-  color: #ed2b33;
+// 操作按钮样式
+.mdm-action-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.mdm-action-btn {
+  background: none;
+  border: none;
+  color: #5b6e8c;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #ed2b33;
+    color: white;
+  }
+
+  &.publish {
+    color: #1890ff;
+
+    &:hover {
+      background: #1890ff;
+      color: white;
+    }
+  }
+
+  &.delete:hover {
+    background: #ef4444;
+  }
 }
 
 // 规则段配置区域
@@ -963,5 +1312,286 @@ onMounted(() => {
 .mdm-page-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+// 条件规则配置样式
+.condition-rules {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  padding: 8px;
+  background: #fafafa;
+}
+
+.condition-rule-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.rule-when {
+  flex: 1;
+  color: #333;
+  font-size: 13px;
+}
+
+.rule-arrow {
+  margin: 0 10px;
+  color: #999;
+}
+
+.rule-then-input {
+  width: 80px;
+  padding: 4px 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 13px;
+
+  &:focus {
+    border-color: #409eff;
+    outline: none;
+  }
+}
+
+.condition-empty {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+}
+
+// 分类映射配置样式
+.category-mapping {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  padding: 8px;
+  background: #fafafa;
+}
+
+.mapping-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.mapping-key {
+  flex: 1;
+  color: #333;
+  font-size: 13px;
+}
+
+.mapping-arrow {
+  margin: 0 10px;
+  color: #999;
+}
+
+.mapping-value-input {
+  width: 80px;
+  padding: 4px 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 13px;
+
+  &:focus {
+    border-color: #409eff;
+    outline: none;
+  }
+}
+
+.mapping-empty {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+}
+
+// 字段选择样式
+.field-select-box {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selected-field-text {
+  flex: 1;
+  padding: 6px 12px;
+  background: #f5f5f5;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  color: #333;
+  font-size: 13px;
+}
+
+.select-field-btn {
+  flex: 1;
+  padding: 6px 12px;
+  background: #fff;
+  border: 1px dashed #d9d9d9;
+  border-radius: 4px;
+  color: #666;
+  cursor: pointer;
+  font-size: 13px;
+
+  &:hover {
+    border-color: #1890ff;
+    color: #1890ff;
+  }
+}
+
+.clear-field-btn {
+  padding: 2px 8px;
+  background: #ff4d4f;
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+
+  &:hover {
+    background: #ff7875;
+  }
+}
+
+.field-tip {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #999;
+}
+
+// 条件规则包装器
+.condition-rules-wrapper {
+  flex: 1;
+  display: flex;
+  gap: 12px;
+
+  .mdm-textarea {
+    flex: 1;
+  }
+}
+
+.condition-example {
+  width: 200px;
+  flex-shrink: 0;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.example-header {
+  padding: 6px 10px;
+  background: #fafafa;
+  border-bottom: 1px solid #e8e8e8;
+  font-size: 12px;
+  color: #666;
+}
+
+.example-code {
+  margin: 0;
+  padding: 10px;
+  background: #f5f5f5;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #333;
+  cursor: pointer;
+  overflow-x: auto;
+  white-space: pre;
+  font-family: Consolas, Monaco, monospace;
+
+  &:hover {
+    background: #e8e8e8;
+  }
+}
+
+// 字段搜索弹窗样式
+.field-search-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field-search-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 14px;
+
+  &:focus {
+    border-color: #1890ff;
+    outline: none;
+  }
+}
+
+.field-search-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+}
+
+.field-search-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: #e6f7ff;
+  }
+}
+
+.field-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.field-search-item .field-name {
+  font-size: 14px;
+  color: #333;
+}
+
+.field-search-item .field-code {
+  font-size: 12px;
+  color: #999;
+}
+
+.field-type {
+  padding: 2px 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #666;
+}
+
+.field-search-empty {
+  padding: 40px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
 }
 </style>

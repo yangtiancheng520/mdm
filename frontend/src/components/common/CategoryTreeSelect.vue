@@ -1,12 +1,23 @@
 <script setup lang="ts">
 /**
- * 字段分类树形选择组件 - 基于 Element Plus Tree
+ * 分类树形选择组件 - 基于 Element Plus Tree
  * 使用弹窗方式选择
+ * 支持传入自定义树数据或从API获取
  */
 
 import { ref, computed, watch, onMounted } from 'vue'
 import { ElTree, ElDialog } from 'element-plus'
 import { getActiveCategoryTree, type FieldCategory } from '../../api/standard/fieldCategory'
+
+// 通用树节点类型
+interface TreeNode {
+  id?: number
+  categoryCode?: string
+  categoryName?: string
+  parentId?: number | null
+  children?: TreeNode[]
+  [key: string]: any
+}
 
 // Props
 interface Props {
@@ -15,6 +26,7 @@ interface Props {
   disabled?: boolean
   clearable?: boolean
   showAll?: boolean
+  treeData?: TreeNode[]  // 可选：传入自定义树数据
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -22,21 +34,30 @@ const props = withDefaults(defineProps<Props>(), {
   placeholder: '请选择分类',
   disabled: false,
   clearable: true,
-  showAll: false
+  showAll: false,
+  treeData: undefined
 })
 
 // Emits
 const emit = defineEmits<{
   'update:modelValue': [value: number | null]
-  'change': [value: number | null, node: FieldCategory | null]
+  'change': [value: number | null, node: TreeNode | null]
 }>()
 
 // 数据
-const treeData = ref<FieldCategory[]>([])
+const apiTreeData = ref<TreeNode[]>([])
 const loading = ref(false)
 const treeRef = ref<InstanceType<typeof ElTree>>()
 const filterText = ref('')
 const dialogVisible = ref(false)
+
+// 实际使用的树数据：优先使用传入的数据，否则使用API获取的数据
+const treeData = computed(() => {
+  if (props.treeData && props.treeData.length > 0) {
+    return props.treeData
+  }
+  return apiTreeData.value
+})
 
 // 选中的值
 const selectedValue = computed({
@@ -52,10 +73,11 @@ const displayText = computed(() => {
 })
 
 // 查找节点
-function findNode(nodes: FieldCategory[], id: number): FieldCategory | null {
+function findNode(nodes: TreeNode[], id: number): TreeNode | null {
+  if (!nodes || nodes.length === 0) return null
   for (const node of nodes) {
-    if (node.id === id) return node
-    if (node.children) {
+    if (node.id !== undefined && node.id === id) return node
+    if (node.children && node.children.length > 0) {
       const found = findNode(node.children, id)
       if (found) return found
     }
@@ -65,14 +87,19 @@ function findNode(nodes: FieldCategory[], id: number): FieldCategory | null {
 
 // 获取分类树数据
 async function fetchTree() {
+  // 如果传入了自定义树数据，则不从API获取
+  if (props.treeData && props.treeData.length > 0) {
+    return
+  }
+
   loading.value = true
   try {
     const res = await getActiveCategoryTree()
-    treeData.value = res.data || []
+    apiTreeData.value = res.data || []
 
     // 如果需要显示"全部"选项
     if (props.showAll) {
-      treeData.value = [
+      apiTreeData.value = [
         {
           id: 0,
           categoryCode: 'ALL',
@@ -82,7 +109,7 @@ async function fetchTree() {
           status: 'active',
           createdAt: '',
           updatedAt: '',
-          children: treeData.value
+          children: apiTreeData.value
         }
       ]
     }
@@ -94,9 +121,9 @@ async function fetchTree() {
 }
 
 // 过滤节点
-function filterNode(value: string, data: FieldCategory): boolean {
+function filterNode(value: string, data: TreeNode): boolean {
   if (!value) return true
-  return data.categoryName.includes(value) || data.categoryCode.includes(value)
+  return (data.categoryName?.includes(value) || false) || (data.categoryCode?.includes(value) || false)
 }
 
 // 监听搜索文本
@@ -105,11 +132,11 @@ watch(filterText, (val) => {
 })
 
 // 节点点击
-function handleNodeClick(data: FieldCategory) {
+function handleNodeClick(data: TreeNode) {
   if (data.id === 0 && props.showAll) {
     selectedValue.value = null
     emit('change', null, null)
-  } else {
+  } else if (data.id) {
     selectedValue.value = data.id
     emit('change', data.id, data)
   }

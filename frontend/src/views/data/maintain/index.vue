@@ -13,20 +13,249 @@
             <span class="form-title">{{ formDialogTitle }}</span>
           </div>
           <div class="header-right">
-            <el-button type="primary" @click="handleSaveForm" :loading="saving">
+            <el-button v-if="!isViewMode && !editingInstance" type="primary" @click="handleSaveForm" :loading="saving">
               <el-icon><Check /></el-icon>
               保存
             </el-button>
-            <el-button v-if="!editingInstance" type="warning" @click="handleFillTestData">
+            <el-button v-if="!isViewMode && !editingInstance" type="warning" @click="handleFillTestData">
               <el-icon><Position /></el-icon>
               一键填入测试数据
+            </el-button>
+            <el-button v-if="!isViewMode && editingInstance" type="primary" @click="handleSaveForm" :loading="saving">
+              <el-icon><Check /></el-icon>
+              保存
             </el-button>
           </div>
         </div>
 
         <!-- 表单主体 -->
         <div class="form-body">
-          <!-- 全Tab布局 -->
+          <!-- 查看模式：使用相同的布局样式，操作日志放最下面 -->
+          <template v-if="isViewMode">
+            <!-- 全Tab布局 -->
+            <template v-if="layoutConfig.subTableLayout === 'full-tabs'">
+              <div class="form-tabs-layout">
+                <div class="form-tabs-header">
+                  <div
+                    class="form-tab"
+                    :class="{ active: activeFormTab === -1 }"
+                    @click="activeFormTab = -1"
+                  >
+                    主表信息
+                  </div>
+                  <div
+                    v-for="(entity, index) in subEntities"
+                    :key="entity.id"
+                    class="form-tab"
+                    :class="{ active: activeFormTab === index }"
+                    @click="activeFormTab = index"
+                  >
+                    {{ entity.entityName }}
+                  </div>
+                </div>
+
+                <div class="form-tabs-content">
+                  <!-- 主表内容 -->
+                  <template v-if="activeFormTab === -1">
+                    <el-form label-width="120px" :model="formData">
+                      <el-row :gutter="20">
+                        <el-col :span="6" v-for="field in filteredFormFields" :key="field.fieldCode">
+                          <el-form-item :label="field.fieldName">
+                            <el-input
+                              v-model="formData[field.fieldCode]"
+                              disabled
+                              style="width: 100%"
+                            />
+                          </el-form-item>
+                        </el-col>
+                      </el-row>
+                    </el-form>
+                  </template>
+
+                  <!-- 子表内容 -->
+                  <template v-else>
+                    <el-table
+                      :data="getSubTableData(activeFormTab)"
+                      border
+                      stripe
+                      max-height="400"
+                    >
+                      <el-table-column
+                        v-for="field in getSubTableFields(activeFormTab)"
+                        :key="field.fieldCode"
+                        :prop="field.fieldCode"
+                        :label="field.fieldName"
+                        min-width="150"
+                      />
+                    </el-table>
+                  </template>
+                </div>
+              </div>
+            </template>
+
+            <!-- 主表+子表Tab布局 -->
+            <template v-else-if="layoutConfig.subTableLayout === 'tabs'">
+              <div class="form-main-layout">
+                <!-- 主表信息 -->
+                <div class="form-section">
+                  <div class="form-section-title">主表信息</div>
+                  <el-form label-width="120px" :model="formData">
+                    <el-row :gutter="20">
+                      <el-col :span="6" v-for="field in filteredFormFields" :key="field.fieldCode">
+                        <el-form-item :label="field.fieldName">
+                          <el-input
+                            v-model="formData[field.fieldCode]"
+                            disabled
+                            style="width: 100%"
+                          />
+                        </el-form-item>
+                      </el-col>
+                    </el-row>
+                  </el-form>
+                </div>
+
+                <!-- 子表Tab -->
+                <div class="form-section" v-if="subEntities.length > 0">
+                  <div class="form-section-title">子表信息</div>
+                  <div class="form-tabs-layout">
+                    <div class="form-tabs-header">
+                      <div
+                        v-for="(entity, index) in subEntities"
+                        :key="entity.id"
+                        class="form-tab"
+                        :class="{ active: activeFormTab === index }"
+                        @click="activeFormTab = index"
+                      >
+                        {{ entity.entityName }}
+                      </div>
+                    </div>
+                    <div class="form-tabs-content">
+                      <el-table
+                        :data="getSubTableData(activeFormTab)"
+                        border
+                        stripe
+                        max-height="400"
+                      >
+                        <el-table-column
+                          v-for="field in getSubTableFields(activeFormTab)"
+                          :key="field.fieldCode"
+                          :prop="field.fieldCode"
+                          :label="field.fieldName"
+                          min-width="150"
+                        />
+                      </el-table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- 折叠面板布局 -->
+            <template v-else-if="layoutConfig.subTableLayout === 'collapse'">
+              <div class="form-main-layout">
+                <!-- 主表信息 -->
+                <div class="form-section">
+                  <div class="form-section-title">主表信息</div>
+                  <el-form label-width="120px" :model="formData">
+                    <el-row :gutter="20">
+                      <el-col :span="6" v-for="field in filteredFormFields" :key="field.fieldCode">
+                        <el-form-item :label="field.fieldName">
+                          <el-input
+                            v-model="formData[field.fieldCode]"
+                            disabled
+                            style="width: 100%"
+                          />
+                        </el-form-item>
+                      </el-col>
+                    </el-row>
+                  </el-form>
+                </div>
+
+                <!-- 子表折叠面板 -->
+                <div class="form-section" v-if="subEntities.length > 0">
+                  <el-collapse>
+                    <el-collapse-item
+                      v-for="(entity, index) in subEntities"
+                      :key="entity.id"
+                      :title="entity.entityName"
+                      :name="index"
+                    >
+                      <el-table
+                        :data="getSubTableData(index)"
+                        border
+                        stripe
+                        max-height="400"
+                      >
+                        <el-table-column
+                          v-for="field in getSubTableFields(index)"
+                          :key="field.fieldCode"
+                          :prop="field.fieldCode"
+                          :label="field.fieldName"
+                          min-width="150"
+                        />
+                      </el-table>
+                    </el-collapse-item>
+                  </el-collapse>
+                </div>
+              </div>
+            </template>
+
+            <!-- 平铺布局 -->
+            <template v-else>
+              <div class="form-main-layout">
+                <!-- 主表信息 -->
+                <div class="form-section">
+                  <div class="form-section-title">主表信息</div>
+                  <el-form label-width="120px" :model="formData">
+                    <el-row :gutter="20">
+                      <el-col :span="6" v-for="field in filteredFormFields" :key="field.fieldCode">
+                        <el-form-item :label="field.fieldName">
+                          <el-input
+                            v-model="formData[field.fieldCode]"
+                            disabled
+                            style="width: 100%"
+                          />
+                        </el-form-item>
+                      </el-col>
+                    </el-row>
+                  </el-form>
+                </div>
+
+                <!-- 子表平铺 -->
+                <div class="form-section" v-for="(entity, index) in subEntities" :key="entity.id">
+                  <div class="form-section-title">{{ entity.entityName }}</div>
+                  <el-table
+                    :data="getSubTableData(index)"
+                    border
+                    stripe
+                    max-height="400"
+                  >
+                    <el-table-column
+                      v-for="field in getSubTableFields(index)"
+                      :key="field.fieldCode"
+                      :prop="field.fieldCode"
+                      :label="field.fieldName"
+                      min-width="150"
+                    />
+                  </el-table>
+                </div>
+              </div>
+            </template>
+
+            <!-- 操作日志放最下面 -->
+            <div class="form-section" style="margin-top: 20px;">
+              <div class="form-section-title">操作日志</div>
+              <OperationLogTimeline
+                v-if="editingInstance?.id && selectedNode?.formId"
+                :form-id="selectedNode.formId"
+                :record-id="editingInstance.id"
+              />
+            </div>
+          </template>
+
+          <!-- 编辑/新增模式：显示原有表单 -->
+          <template v-else>
+            <!-- 全Tab布局 -->
           <template v-if="layoutConfig.subTableLayout === 'full-tabs'">
             <div class="form-tabs-layout">
               <div class="form-tabs-header">
@@ -55,11 +284,82 @@
                     <el-row :gutter="20">
                       <el-col :span="6" v-for="field in filteredFormFields" :key="field.fieldCode">
                         <el-form-item :label="field.fieldName" :required="field.isRequired && !field.autoNumber">
-                          <component
-                            :is="getFieldComponent(field)"
+                          <!-- 文本输入 -->
+                          <el-input
+                            v-if="getInputType(field) === 'input'"
                             v-model="formData[field.fieldCode]"
-                            :placeholder="`请输入${field.fieldName}`"
+                            :placeholder="isViewMode ? '' : `请输入${field.fieldName}`"
                             :maxlength="field.length"
+                            :disabled="isViewMode"
+                            style="width: 100%"
+                          />
+                          <!-- 多行文本 -->
+                          <el-input
+                            v-else-if="getInputType(field) === 'textarea'"
+                            v-model="formData[field.fieldCode]"
+                            type="textarea"
+                            :rows="2"
+                            :placeholder="isViewMode ? '' : `请输入${field.fieldName}`"
+                            :disabled="isViewMode"
+                            style="width: 100%"
+                          />
+                          <!-- 数字输入 -->
+                          <el-input-number
+                            v-else-if="getInputType(field) === 'number'"
+                            v-model="formData[field.fieldCode]"
+                            style="width: 100%"
+                            controls-position="right"
+                            :precision="field.precisionVal"
+                            :disabled="isViewMode"
+                          />
+                          <!-- 日期选择 -->
+                          <el-date-picker
+                            v-else-if="getInputType(field) === 'date'"
+                            v-model="formData[field.fieldCode]"
+                            style="width: 100%"
+                            type="date"
+                            :placeholder="isViewMode ? '' : '请选择日期'"
+                            value-format="YYYY-MM-DD"
+                            :disabled="isViewMode"
+                          />
+                          <!-- 日期时间选择 -->
+                          <el-date-picker
+                            v-else-if="getInputType(field) === 'datetime'"
+                            v-model="formData[field.fieldCode]"
+                            style="width: 100%"
+                            type="datetime"
+                            :placeholder="isViewMode ? '' : '请选择日期时间'"
+                            value-format="YYYY-MM-DD HH:mm:ss"
+                            :disabled="isViewMode"
+                          />
+                          <!-- 下拉选择 -->
+                          <el-select
+                            v-else-if="getInputType(field) === 'select'"
+                            v-model="formData[field.fieldCode]"
+                            style="width: 100%"
+                            :placeholder="isViewMode ? '' : `请选择${field.fieldName}`"
+                            clearable
+                            :disabled="isViewMode"
+                          >
+                            <el-option
+                              v-for="opt in getDomainOptions(field.domainId)"
+                              :key="opt.value"
+                              :label="opt.label"
+                              :value="opt.value"
+                            />
+                          </el-select>
+                          <!-- 开关 -->
+                          <el-switch
+                            v-else-if="getInputType(field) === 'switch'"
+                            v-model="formData[field.fieldCode]"
+                            :disabled="isViewMode"
+                          />
+                          <!-- 默认文本输入 -->
+                          <el-input
+                            v-else
+                            v-model="formData[field.fieldCode]"
+                            :placeholder="isViewMode ? '' : `请输入${field.fieldName}`"
+                            :disabled="isViewMode"
                             style="width: 100%"
                           />
                         </el-form-item>
@@ -71,7 +371,7 @@
                 <!-- 子表内容 -->
                 <template v-else>
                   <div class="subtable-section">
-                    <div class="subtable-toolbar">
+                    <div class="subtable-toolbar" v-if="!isViewMode">
                       <el-button type="primary" size="small" @click="handleAddSubTableRow(activeFormTab)">
                         <el-icon><Plus /></el-icon>
                         添加行
@@ -88,7 +388,7 @@
                       max-height="400"
                       @selection-change="(rows: any[]) => handleSubTableSelectionChange(activeFormTab, rows)"
                     >
-                      <el-table-column type="selection" width="50" />
+                      <el-table-column type="selection" width="50" v-if="!isViewMode" />
                       <el-table-column
                         v-for="field in getSubTableFields(activeFormTab)"
                         :key="field.fieldCode"
@@ -102,8 +402,9 @@
                             v-if="getInputType(field) === 'input'"
                             v-model="row[field.fieldCode]"
                             size="small"
-                            :placeholder="`请输入`"
+                            :placeholder="isViewMode ? '' : '请输入'"
                             :maxlength="field.length"
+                            :disabled="isViewMode"
                           />
                           <!-- 多行文本 -->
                           <el-input
@@ -112,6 +413,7 @@
                             size="small"
                             type="textarea"
                             :rows="1"
+                            :disabled="isViewMode"
                           />
                           <!-- 数字输入 -->
                           <el-input-number
@@ -120,6 +422,7 @@
                             size="small"
                             controls-position="right"
                             :precision="field.precisionVal"
+                            :disabled="isViewMode"
                           />
                           <!-- 日期选择 -->
                           <el-date-picker
@@ -127,8 +430,9 @@
                             v-model="row[field.fieldCode]"
                             size="small"
                             type="date"
-                            placeholder="请选择"
+                            :placeholder="isViewMode ? '' : '请选择'"
                             value-format="YYYY-MM-DD"
+                            :disabled="isViewMode"
                           />
                           <!-- 日期时间选择 -->
                           <el-date-picker
@@ -136,16 +440,18 @@
                             v-model="row[field.fieldCode]"
                             size="small"
                             type="datetime"
-                            placeholder="请选择"
+                            :placeholder="isViewMode ? '' : '请选择'"
                             value-format="YYYY-MM-DD HH:mm:ss"
+                            :disabled="isViewMode"
                           />
                           <!-- 下拉选择 -->
                           <el-select
                             v-else-if="getInputType(field) === 'select'"
                             v-model="row[field.fieldCode]"
                             size="small"
-                            placeholder="请选择"
+                            :placeholder="isViewMode ? '' : '请选择'"
                             clearable
+                            :disabled="isViewMode"
                           >
                             <el-option
                               v-for="opt in getDomainOptions(field.domainId)"
@@ -159,12 +465,14 @@
                             v-else-if="getInputType(field) === 'switch'"
                             v-model="row[field.fieldCode]"
                             size="small"
+                            :disabled="isViewMode"
                           />
                           <!-- 默认文本输入 -->
                           <el-input
                             v-else
                             v-model="row[field.fieldCode]"
                             size="small"
+                            :disabled="isViewMode"
                           />
                         </template>
                       </el-table-column>
@@ -284,7 +592,7 @@
 
                   <div class="form-tabs-content">
                     <div class="subtable-section">
-                      <div class="subtable-toolbar">
+                      <div class="subtable-toolbar" v-if="!isViewMode">
                         <el-button type="primary" size="small" @click="handleAddSubTableRow(activeFormTab)">
                           <el-icon><Plus /></el-icon>
                           添加行
@@ -301,7 +609,7 @@
                         max-height="400"
                         @selection-change="(rows: any[]) => handleSubTableSelectionChange(activeFormTab, rows)"
                       >
-                        <el-table-column type="selection" width="50" />
+                        <el-table-column type="selection" width="50" v-if="!isViewMode" />
                         <el-table-column
                           v-for="field in getSubTableFields(activeFormTab)"
                           :key="field.fieldCode"
@@ -485,7 +793,7 @@
                     :name="index"
                   >
                     <div class="subtable-section">
-                      <div class="subtable-toolbar">
+                      <div class="subtable-toolbar" v-if="!isViewMode">
                         <el-button type="primary" size="small" @click="handleAddSubTableRow(index)">
                           <el-icon><Plus /></el-icon>
                           添加行
@@ -502,7 +810,7 @@
                         max-height="400"
                         @selection-change="(rows: any[]) => handleSubTableSelectionChange(index, rows)"
                       >
-                        <el-table-column type="selection" width="50" />
+                        <el-table-column type="selection" width="50" v-if="!isViewMode" />
                         <el-table-column
                           v-for="field in getSubTableFields(index)"
                           :key="field.fieldCode"
@@ -685,7 +993,7 @@
               <div class="form-section" v-for="(entity, index) in subEntities" :key="entity.id">
                 <div class="form-section-title">{{ entity.entityName }}</div>
                 <div class="subtable-section">
-                  <div class="subtable-toolbar">
+                  <div class="subtable-toolbar" v-if="!isViewMode">
                     <el-button type="primary" size="small" @click="handleAddSubTableRow(index)">
                       <el-icon><Plus /></el-icon>
                       添加行
@@ -718,6 +1026,7 @@
                 </div>
               </div>
             </div>
+          </template>
           </template>
         </div>
       </div>
@@ -814,9 +1123,9 @@
                   v-model:visible="showMoreFilter"
                 >
                   <template #reference>
-                    <el-button type="primary" link style="color: #fff;">
+                    <el-button type="primary" link style="color: #fff; margin: 0 12px; padding: 0 8px;">
                       高级查询
-                      <el-icon :class="{ 'is-rotate': showMoreFilter }"><ArrowDown /></el-icon>
+                      <el-icon :class="{ 'is-rotate': showMoreFilter }" style="margin-left: 4px;"><ArrowDown /></el-icon>
                     </el-button>
                   </template>
                   <div class="mdm-popover-filter">
@@ -842,11 +1151,14 @@
                   v-model="searchForm.status"
                   placeholder="状态"
                   clearable
-                  style="width: 120px"
+                  style="width: 160px"
                 >
                   <el-option label="草稿" value="DRAFT" />
-                  <el-option label="审核中" value="PENDING" />
-                  <el-option label="已生效" value="ACTIVE" />
+                  <el-option label="审批中" value="PENDING" />
+                  <el-option label="待质检" value="PENDING_QC" />
+                  <el-option label="已生效-合格" value="ACTIVE_QUALIFIED" />
+                  <el-option label="已生效-不合格" value="ACTIVE_UNQUALIFIED" />
+                  <el-option label="已作废" value="OBSOLETE" />
                 </el-select>
                 <button class="mdm-btn-outline" @click="handleSearch">查询</button>
                 <button class="mdm-btn-outline" @click="handleReset">重置</button>
@@ -866,18 +1178,43 @@
               @selection-change="handleSelectionChange"
             >
               <el-table-column type="selection" width="50" />
-              <el-table-column
-                v-for="field in resultFields"
-                :key="field.fieldCode"
-                :prop="field.fieldCode"
-                :label="field.fieldName"
-                min-width="120"
-                show-overflow-tooltip
-              >
-                <template #default="{ row }">
-                  {{ getFieldValue(row, field.fieldCode) }}
+              <template v-for="field in resultFields" :key="field.fieldCode">
+                <!-- 如果字段有值域，显示两列：编码和描述 -->
+                <template v-if="field.domainId">
+                  <el-table-column
+                    :prop="field.fieldCode"
+                    :label="field.fieldName + '(编码)'"
+                    min-width="100"
+                    show-overflow-tooltip
+                  >
+                    <template #default="{ row }">
+                      {{ getFieldCode(row, field.fieldCode) }}
+                    </template>
+                  </el-table-column>
+                  <el-table-column
+                    :label="field.fieldName + '(描述)'"
+                    min-width="120"
+                    show-overflow-tooltip
+                  >
+                    <template #default="{ row }">
+                      {{ getFieldLabel(row, field.fieldCode, field.domainId) }}
+                    </template>
+                  </el-table-column>
                 </template>
-              </el-table-column>
+                <!-- 如果字段没有值域，显示单列 -->
+                <template v-else>
+                  <el-table-column
+                    :prop="field.fieldCode"
+                    :label="field.fieldName"
+                    min-width="120"
+                    show-overflow-tooltip
+                  >
+                    <template #default="{ row }">
+                      {{ getFieldValue(row, field.fieldCode) }}
+                    </template>
+                  </el-table-column>
+                </template>
+              </template>
               <el-table-column prop="status" label="状态" width="100">
                 <template #default="{ row }">
                   <el-tag :type="getStatusType(row.status)">{{ getStatusLabel(row.status) }}</el-tag>
@@ -893,26 +1230,119 @@
                   {{ row.created_by || '-' }}
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="280" fixed="right">
+              <el-table-column label="操作" width="200" fixed="right">
                 <template #default="{ row }">
                   <!-- 草稿状态 -->
                   <template v-if="row.status === 'DRAFT'">
-                    <el-button size="small" type="success" @click="handleStatusChange(row, 'PENDING')">提交审批</el-button>
-                    <el-button size="small" type="primary" @click="handleEdit(row)">编辑</el-button>
-                    <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+                    <el-tooltip content="提交审批" placement="top">
+                      <el-button size="small" type="success" circle @click="handleStatusChange(row, 'PENDING')">
+                        <el-icon><Promotion /></el-icon>
+                      </el-button>
+                    </el-tooltip>
+                    <el-tooltip content="编辑" placement="top">
+                      <el-button size="small" type="primary" circle @click="handleEdit(row)">
+                        <el-icon><Edit /></el-icon>
+                      </el-button>
+                    </el-tooltip>
+                    <el-tooltip content="删除" placement="top">
+                      <el-button size="small" type="danger" circle @click="handleDelete(row)">
+                        <el-icon><Delete /></el-icon>
+                      </el-button>
+                    </el-tooltip>
                   </template>
-                  <!-- 审核中状态 -->
+
+                  <!-- 审批中状态 -->
                   <template v-else-if="row.status === 'PENDING'">
-                    <el-button size="small" type="info" @click="handleView(row)">查看</el-button>
+                    <el-tooltip content="通过审批" placement="top">
+                      <el-button size="small" type="success" circle @click="handleStatusChange(row, 'PENDING_QC')">
+                        <el-icon><Check /></el-icon>
+                      </el-button>
+                    </el-tooltip>
+                    <el-tooltip content="驳回审批" placement="top">
+                      <el-button size="small" type="danger" circle @click="handleStatusChange(row, 'DRAFT')">
+                        <el-icon><Close /></el-icon>
+                      </el-button>
+                    </el-tooltip>
+                    <el-tooltip content="查看" placement="top">
+                      <el-button size="small" type="info" circle @click="handleView(row)">
+                        <el-icon><View /></el-icon>
+                      </el-button>
+                    </el-tooltip>
                   </template>
-                  <!-- 已生效状态 -->
-                  <template v-else-if="row.status === 'ACTIVE'">
-                    <el-button size="small" type="primary" @click="handleEdit(row)">编辑</el-button>
-                    <el-button size="small" type="info" @click="handleView(row)">查看</el-button>
+
+                  <!-- 待质检状态 -->
+                  <template v-else-if="row.status === 'PENDING_QC'">
+                    <el-tooltip content="执行质检" placement="top">
+                      <el-button size="small" type="primary" circle @click="handleQualityCheck(row)">
+                        <el-icon><DataAnalysis /></el-icon>
+                      </el-button>
+                    </el-tooltip>
+                    <el-tooltip content="查看" placement="top">
+                      <el-button size="small" type="info" circle @click="handleView(row)">
+                        <el-icon><View /></el-icon>
+                      </el-button>
+                    </el-tooltip>
                   </template>
+
+                  <!-- 已生效-合格状态 -->
+                  <template v-else-if="row.status === 'ACTIVE_QUALIFIED'">
+                    <el-tooltip content="查看" placement="top">
+                      <el-button size="small" type="info" circle @click="handleView(row)">
+                        <el-icon><View /></el-icon>
+                      </el-button>
+                    </el-tooltip>
+                    <el-tooltip content="编辑" placement="top">
+                      <el-button size="small" type="primary" circle @click="handleEdit(row)">
+                        <el-icon><Edit /></el-icon>
+                      </el-button>
+                    </el-tooltip>
+                    <el-tooltip content="作废" placement="top">
+                      <el-button size="small" type="warning" circle @click="handleStatusChange(row, 'OBSOLETE')">
+                        <el-icon><DeleteFilled /></el-icon>
+                      </el-button>
+                    </el-tooltip>
+                  </template>
+
+                  <!-- 已生效-不合格状态 -->
+                  <template v-else-if="row.status === 'ACTIVE_UNQUALIFIED'">
+                    <el-tooltip content="查看" placement="top">
+                      <el-button size="small" type="info" circle @click="handleView(row)">
+                        <el-icon><View /></el-icon>
+                      </el-button>
+                    </el-tooltip>
+                    <el-tooltip content="重新质检" placement="top">
+                      <el-button size="small" type="warning" circle @click="handleQualityCheck(row)">
+                        <el-icon><RefreshRight /></el-icon>
+                      </el-button>
+                    </el-tooltip>
+                    <el-tooltip content="作废" placement="top">
+                      <el-button size="small" type="warning" circle @click="handleStatusChange(row, 'OBSOLETE')">
+                        <el-icon><DeleteFilled /></el-icon>
+                      </el-button>
+                    </el-tooltip>
+                  </template>
+
+                  <!-- 已作废状态 -->
+                  <template v-else-if="row.status === 'OBSOLETE'">
+                    <el-tooltip content="查看" placement="top">
+                      <el-button size="small" type="info" circle @click="handleView(row)">
+                        <el-icon><View /></el-icon>
+                      </el-button>
+                    </el-tooltip>
+                    <el-tooltip content="恢复" placement="top">
+                      <el-button size="small" type="success" circle @click="handleRestore(row)">
+                        <el-icon><RefreshLeft /></el-icon>
+                      </el-button>
+                    </el-tooltip>
+                  </template>
+
                   <!-- 默认显示查看 -->
                   <template v-else>
-                    <el-button size="small" type="primary" @click="handleView(row)">查看</el-button>
+                    <el-tooltip content="查看" placement="top">
+                      <el-button size="small" type="primary" circle @click="handleView(row)">
+                        <el-icon><View /></el-icon>
+                      </el-button>
+                    </el-tooltip>
                   </template>
                 </template>
               </el-table-column>
@@ -935,18 +1365,6 @@
       </div>
     </template>
 
-    <!-- 查看数据弹窗 -->
-    <MdmDialog v-model="viewDialogVisible" title="查看数据" width="600px">
-      <div v-if="viewData" class="view-content">
-        <div v-for="field in resultFields" :key="field.fieldCode" class="view-item">
-          <span class="label">{{ field.fieldName }}:</span>
-          <span class="value">{{ viewData[field.fieldCode] || '-' }}</span>
-        </div>
-      </div>
-      <template #footer>
-        <button class="mdm-btn-cancel" @click="viewDialogVisible = false">关闭</button>
-      </template>
-    </MdmDialog>
 
     <!-- 分发弹窗 -->
     <el-dialog v-model="distributeVisible" title="分发到目标系统" width="500px">
@@ -955,10 +1373,10 @@
           <el-input :value="distributeRow?.id" disabled />
         </el-form-item>
         <el-form-item label="数据编码">
-          <el-input :value="distributeRow?.code || distributeRow?.vendor_code" disabled />
+          <el-input :value="getDistributeCode()" disabled />
         </el-form-item>
         <el-form-item label="数据名称">
-          <el-input :value="distributeRow?.name || distributeRow?.vendor_name" disabled />
+          <el-input :value="getDistributeName()" disabled />
         </el-form-item>
         <el-form-item label="目标系统" required>
           <el-select v-model="selectedSystemConfig" placeholder="请选择目标系统" style="width: 100%">
@@ -1002,8 +1420,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Folder, Document, Guide, ArrowLeft, Check, Plus, Delete, Position, ArrowDown, Search } from '@element-plus/icons-vue'
+import { Folder, Document, Guide, ArrowLeft, Check, Plus, Delete, Position, ArrowDown, Search, Edit, View, Promotion, Close, DeleteFilled, DataAnalysis, RefreshRight, RefreshLeft } from '@element-plus/icons-vue'
 import MdmDialog from '@/components/MdmDialog.vue'
+import OperationLogTimeline from '@/components/OperationLogTimeline.vue'
 import { getCategoryTree, type DataCategoryDto } from '@/api/data/category'
 import {
   getInstanceList,
@@ -1059,7 +1478,12 @@ const filteredFormFields = computed(() => {
 // 全屏表单模式
 const showFullScreenForm = ref(false)
 const activeFormTab = ref(0)  // 默认显示第一个TAB（子表或主表）
-const formDialogTitle = computed(() => editingInstance.value ? '编辑数据' : '新增数据')
+const activeDetailTab = ref('detail')  // 查看详情时的Tab（detail/logs）
+const isViewMode = ref(false)  // 查看模式标志
+const formDialogTitle = computed(() => {
+  if (isViewMode.value) return '查看数据'
+  return editingInstance.value ? '编辑数据' : '新增数据'
+})
 
 // 表单相关
 const formDesign = ref<FormDesignRequest | null>(null)
@@ -1121,10 +1545,6 @@ const selectedSystemConfig = ref<number | null>(null)
 const distributeRow = ref<any>(null)
 const total = ref(0)
 
-// 查看弹窗
-const viewDialogVisible = ref(false)
-const viewData = ref<Record<string, any> | null>(null)
-
 // 加载分类树
 async function loadTree() {
   try {
@@ -1178,9 +1598,23 @@ async function loadViewDesign(viewId: number) {
 // 加载值域数据
 async function loadDomainData() {
   const domainIds = new Set<number>()
+
+  // 收集表单字段的值域
   filteredFormFields.value.forEach(field => {
     if (field.domainId) domainIds.add(field.domainId)
   })
+
+  // 收集查询字段的值域
+  queryFields.value.forEach(field => {
+    if (field.domainId) domainIds.add(field.domainId)
+  })
+
+  // 收集结果字段的值域
+  resultFields.value.forEach(field => {
+    if (field.domainId) domainIds.add(field.domainId)
+  })
+
+  // 收集子表字段的值域
   subEntities.value.forEach(entity => {
     entity.fields?.forEach(field => {
       if (field.domainId) domainIds.add(field.domainId)
@@ -1222,6 +1656,15 @@ async function loadDataList() {
     })
     dataList.value = res.data || []
     total.value = dataList.value.length
+
+    // 调试：打印数据结构
+    console.log('===== 数据列表加载 =====')
+    console.log('数据条数:', dataList.value.length)
+    if (dataList.value.length > 0) {
+      console.log('第一条数据:', dataList.value[0])
+      console.log('第一条数据的所有字段:', Object.keys(dataList.value[0]))
+    }
+    console.log('查询结果字段配置:', resultFields.value.map(f => ({ code: f.fieldCode, name: f.fieldName })))
   } catch (error) {
     ElMessage.error('加载数据失败')
   } finally {
@@ -1329,6 +1772,7 @@ async function handleEdit(row: any) {
 function handleCloseForm() {
   showFullScreenForm.value = false
   editingInstance.value = null
+  isViewMode.value = false  // 重置查看模式
   formData.value = {}
   subTableData.value = {}
 }
@@ -1406,9 +1850,33 @@ function validateSubTableData(): string | null {
 
 // 查看数据
 async function handleView(row: any) {
-  // 后端返回的数据直接包含字段值
-  viewData.value = row
-  viewDialogVisible.value = true
+  try {
+    // 加载完整数据（包括子表），与编辑相同
+    const res = await getInstanceById(selectedNode.value!.formId!, row.id)
+    const fullData = res.data
+
+    console.log('查看加载的完整数据:', fullData)
+
+    // 填充主表数据
+    formData.value = { ...fullData.main }
+
+    // 填充子表数据
+    subTableData.value = {}
+    for (const key in fullData) {
+      if (key !== 'main' && Array.isArray(fullData[key])) {
+        subTableData.value[key] = fullData[key]
+      }
+    }
+
+    isViewMode.value = true  // 设置为查看模式
+    editingInstance.value = { id: row.id } as any  // 保留记录ID用于查询操作日志
+    // 有子表时默认显示第一个子表TAB，没有子表时显示主表
+    activeFormTab.value = subEntities.value.length > 0 ? 0 : -1
+    showFullScreenForm.value = true
+  } catch (error) {
+    console.error('加载数据失败:', error)
+    ElMessage.error('加载数据失败')
+  }
 }
 
 // 删除数据
@@ -1433,12 +1901,66 @@ function handleSelectionChange(rows: any[]) {
 }
 
 // 获取字段值（后端直接返回字段数据，不需要解析 dataJson）
-function getFieldValue(row: any, fieldCode: string) {
-  // 后端返回的数据直接包含字段值
+// 如果字段有值域，显示值域的label，否则显示原始值
+function getFieldValue(row: any, fieldCode: string, domainId?: number) {
   const value = row[fieldCode]
-  if (value !== undefined && value !== null && value !== '') {
-    return value
+  if (value === undefined || value === null || value === '') {
+    return '-'
   }
+
+  // 如果有值域ID，查找对应的label
+  if (domainId) {
+    const options = domainMap.value.get(domainId)
+    if (options && options.length > 0) {
+      // 先尝试按code匹配
+      let option = options.find(opt => opt.code === value)
+      if (option) {
+        return `${option.code} - ${option.label}`
+      }
+      // 再尝试按value匹配
+      option = options.find(opt => opt.value === value)
+      if (option) {
+        return `${option.code} - ${option.label}`
+      }
+    }
+  }
+
+  return value
+}
+
+// 获取字段的编码值
+function getFieldCode(row: any, fieldCode: string) {
+  const value = row[fieldCode]
+  if (value === undefined || value === null || value === '') {
+    return '-'
+  }
+  return value
+}
+
+// 获取字段的描述值（从值域中查找）
+function getFieldLabel(row: any, fieldCode: string, domainId?: number) {
+  const value = row[fieldCode]
+  if (value === undefined || value === null || value === '') {
+    return '-'
+  }
+
+  // 如果有值域ID，查找对应的label
+  if (domainId) {
+    const options = domainMap.value.get(domainId)
+    if (options && options.length > 0) {
+      // 先尝试按code匹配
+      let option = options.find(opt => opt.code === value)
+      if (option) {
+        return option.label
+      }
+      // 再尝试按value匹配
+      option = options.find(opt => opt.value === value)
+      if (option) {
+        return option.label
+      }
+    }
+  }
+
   return '-'
 }
 
@@ -1483,6 +2005,10 @@ function getFieldPlaceholder(field: ViewField): string {
 
 // 判断字段是否禁用（自动编号字段在新增时禁用）
 function isFieldDisabled(field: ViewField): boolean {
+  // 如果是查看模式，所有字段都禁用
+  if (isViewMode.value) {
+    return true
+  }
   // 如果字段本身是只读的，则禁用
   if (field.isReadonly) {
     return true
@@ -1589,7 +2115,10 @@ const getStatusType = (status: string) => {
   const typeMap: Record<string, string> = {
     'DRAFT': 'info',
     'PENDING': 'warning',
-    'ACTIVE': 'success'
+    'PENDING_QC': 'primary',
+    'ACTIVE_QUALIFIED': 'success',
+    'ACTIVE_UNQUALIFIED': 'danger',
+    'OBSOLETE': 'info'
   }
   return typeMap[status] || 'info'
 }
@@ -1598,8 +2127,11 @@ const getStatusType = (status: string) => {
 const getStatusLabel = (status: string) => {
   const labelMap: Record<string, string> = {
     'DRAFT': '草稿',
-    'PENDING': '审核中',
-    'ACTIVE': '已生效'
+    'PENDING': '审批中',
+    'PENDING_QC': '待质检',
+    'ACTIVE_QUALIFIED': '已生效-合格',
+    'ACTIVE_UNQUALIFIED': '已生效-不合格',
+    'OBSOLETE': '已作废'
   }
   return labelMap[status] || status
 }
@@ -1764,18 +2296,29 @@ function handleFillTestData() {
 async function handleStatusChange(row: any, newStatus: string) {
   const statusLabels: Record<string, string> = {
     'DRAFT': '草稿',
-    'PENDING': '审核中',
-    'ACTIVE': '已生效'
+    'PENDING': '审批中',
+    'PENDING_QC': '待质检',
+    'ACTIVE_QUALIFIED': '已生效-合格',
+    'ACTIVE_UNQUALIFIED': '已生效-不合格',
+    'OBSOLETE': '已作废'
   }
 
   const actionLabels: Record<string, string> = {
-    'PENDING': '提交审批'
+    'PENDING': '提交审批',
+    'PENDING_QC': '通过审批',
+    'DRAFT': '驳回审批',
+    'OBSOLETE': '作废'
   }
 
   const action = actionLabels[newStatus] || '变更状态'
 
   try {
-    await ElMessageBox.confirm(`确定要${action}吗？`, '提示', {
+    // 通过审批时，提示会进入质检环节
+    const message = newStatus === 'PENDING_QC'
+      ? '确定要通过审批吗？通过后数据将进入待质检状态。'
+      : `确定要${action}吗？`
+
+    await ElMessageBox.confirm(message, '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'info'
@@ -1786,7 +2329,73 @@ async function handleStatusChange(row: any, newStatus: string) {
       status: newStatus
     })
 
-    ElMessage.success(`已${action}`)
+    ElMessage.success(newStatus === 'PENDING_QC' ? '审批通过，数据已进入待质检状态' : `已${action}`)
+    loadDataList()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.response?.data?.message || '操作失败')
+    }
+  }
+}
+
+// 执行质检
+async function handleQualityCheck(row: any) {
+  try {
+    await ElMessageBox.confirm('确定要执行质量检查吗？', '质检确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'info'
+    })
+
+    ElMessage.info('质检任务已提交，正在执行中...')
+
+    // TODO: 调用质检API
+    // const result = await executeQualityCheck({
+    //   dataId: row.id,
+    //   formId: selectedNode.value!.formId
+    // })
+
+    // 模拟质检结果
+    setTimeout(async () => {
+      const passRate = Math.random() * 100
+      const newStatus = passRate >= 80 ? 'ACTIVE_QUALIFIED' : 'ACTIVE_UNQUALIFIED'
+
+      // 更新状态
+      await updateInstance(selectedNode.value!.id, selectedNode.value!.formId!, row.id, {
+        status: newStatus,
+        qualityScore: passRate.toFixed(2)
+      })
+
+      ElMessage.success(`质检完成，通过率: ${passRate.toFixed(2)}%${newStatus === 'ACTIVE_UNQUALIFIED' ? '，数据质量不合格！' : ''}`)
+      loadDataList()
+    }, 1000)
+
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.response?.data?.message || '操作失败')
+    }
+  }
+}
+
+// 恢复已作废数据
+async function handleRestore(row: any) {
+  try {
+    await ElMessageBox.confirm(
+      '确定要恢复这条数据吗？恢复后状态将变为"草稿"，需要重新提交审批。',
+      '恢复确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'info'
+      }
+    )
+
+    // 更新状态为草稿
+    await updateInstance(selectedNode.value!.id, selectedNode.value!.formId!, row.id, {
+      status: 'DRAFT'
+    })
+
+    ElMessage.success('数据已恢复为草稿状态')
     loadDataList()
   } catch (error: any) {
     if (error !== 'cancel') {
@@ -1855,6 +2464,69 @@ async function executeDistribute() {
   } finally {
     distributeLoading.value = false
   }
+}
+
+// 获取分发数据编码（从查询结果字段中查找编码字段）
+function getDistributeCode(): string {
+  if (!distributeRow.value) return '-'
+
+  // 调试：打印数据行的所有字段
+  console.log('分发数据行:', distributeRow.value)
+  console.log('数据行字段:', Object.keys(distributeRow.value))
+
+  // 从 resultFields 中查找编码相关字段
+  const codeField = resultFields.value.find(f =>
+    f.fieldName?.includes('编码') ||
+    f.fieldCode?.toLowerCase().includes('code') ||
+    f.fieldCode?.toLowerCase().includes('matnr') ||
+    f.fieldCode?.toLowerCase().includes('partner_code')
+  )
+
+  if (codeField) {
+    console.log('找到编码字段:', codeField.fieldCode, codeField.fieldName)
+    const value = distributeRow.value[codeField.fieldCode]
+    if (value) return value
+  }
+
+  // 尝试所有可能的编码字段名
+  const possibleCodeFields = ['PARTNER_CODE', 'MATNR', 'CODE', 'VENDOR_CODE', 'CUSTOMER_CODE', 'DATA_CODE']
+  for (const fieldName of possibleCodeFields) {
+    if (distributeRow.value[fieldName]) {
+      return distributeRow.value[fieldName]
+    }
+  }
+
+  return '-'
+}
+
+// 获取分发数据名称（从查询结果字段中查找名称字段）
+function getDistributeName(): string {
+  if (!distributeRow.value) return '-'
+
+  // 从 resultFields 中查找名称相关字段
+  const nameField = resultFields.value.find(f =>
+    f.fieldName?.includes('名称') ||
+    f.fieldName?.includes('描述') ||
+    f.fieldCode?.toLowerCase().includes('name') ||
+    f.fieldCode?.toLowerCase().includes('maktx') ||
+    f.fieldCode?.toLowerCase().includes('partner_name')
+  )
+
+  if (nameField) {
+    console.log('找到名称字段:', nameField.fieldCode, nameField.fieldName)
+    const value = distributeRow.value[nameField.fieldCode]
+    if (value) return value
+  }
+
+  // 尝试所有可能的名称字段名
+  const possibleNameFields = ['PARTNER_NAME', 'MAKTX', 'NAME', 'VENDOR_NAME', 'CUSTOMER_NAME', 'DATA_NAME']
+  for (const fieldName of possibleNameFields) {
+    if (distributeRow.value[fieldName]) {
+      return distributeRow.value[fieldName]
+    }
+  }
+
+  return '-'
 }
 
 onMounted(() => {
@@ -1964,6 +2636,21 @@ onMounted(() => {
   flex: 1;
   overflow: auto;
   padding: 20px;
+
+  .detail-tabs {
+    height: 100%;
+
+    .el-tabs__content {
+      height: calc(100% - 40px);
+      overflow-y: auto;
+    }
+  }
+
+  .detail-content {
+    padding: 20px;
+    background: #fff;
+    border-radius: 4px;
+  }
 }
 
 .form-tabs-layout {

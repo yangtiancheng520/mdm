@@ -30,7 +30,7 @@ public class ViewDefinitionDto {
     private Boolean enableImport;
     private Boolean enableExport;
 
-    // 状态
+    // 状态: draft(草稿), pending_approval(审批中), published(已发布), disabled(已停用), revising(修订中), history(历史版本)
     private String status;
     private LocalDateTime publishTime;
 

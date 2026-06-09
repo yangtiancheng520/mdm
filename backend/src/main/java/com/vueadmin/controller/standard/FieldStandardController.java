@@ -248,6 +248,25 @@ public class FieldStandardController {
     }
 
     /**
+     * 发布字段标准（草稿 -> 启用）
+     *
+     * @param id 主键ID
+     * @return 更新后的字段标准
+     */
+    @PutMapping("/{id}/publish")
+    @Operation(summary = "发布字段标准", description = "发布字段标准（草稿 -> 启用）")
+    public ApiResponse<FieldStandardDto> publish(
+            @Parameter(description = "字段标准ID")
+            @PathVariable Long id) {
+        try {
+            FieldStandardDto result = fieldStandardService.publish(id);
+            return ApiResponse.success("发布成功", result);
+        } catch (RuntimeException e) {
+            return ApiResponse.error(400, e.getMessage());
+        }
+    }
+
+    /**
      * 启用字段标准
      *
      * @param id 主键ID

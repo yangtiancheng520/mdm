@@ -107,7 +107,12 @@ public class ValueDomainService {
         List<ValueDomainItem> items = valueDomainItemRepository
                 .findByDomainIdAndStatusOrderBySortAsc(domainId, "启用");
         return items.stream()
-                .map(item -> new DomainOptionDto(item.getItemValue(), item.getItemValue(), item.getSort()))
+                .map(item -> new DomainOptionDto(
+                    item.getItemCode(),      // code: 编码
+                    item.getItemCode(),      // value: 编码（存储到数据库的值）
+                    item.getItemValue(),     // label: 名称（显示给用户）
+                    item.getSort()
+                ))
                 .collect(Collectors.toList());
     }
 
@@ -126,6 +131,9 @@ public class ValueDomainService {
      */
     @Transactional
     public ValueDomainDto create(ValueDomainDto dto) {
+        System.out.println("========== 创建值域 ==========");
+        System.out.println("前端传来的status: " + dto.getStatus());
+
         if (valueDomainRepository.existsByDomainCode(dto.getDomainCode())) {
             throw new RuntimeException("值域编码已存在: " + dto.getDomainCode());
         }
@@ -137,9 +145,14 @@ public class ValueDomainService {
         entity.setDataLength(dto.getDataLength());
         entity.setDescription(dto.getDescription());
         entity.setCreatedBy(dto.getCreatedBy());
-        entity.setStatus("启用"); // 默认启用
+        // 强制设置为草稿，忽略前端传来的status
+        entity.setStatus("草稿");
+
+        System.out.println("设置后的status: " + entity.getStatus());
 
         ValueDomain saved = valueDomainRepository.save(entity);
+
+        System.out.println("保存后的status: " + saved.getStatus());
 
         // 保存值域项
         if (dto.getOptions() != null && !dto.getOptions().isEmpty()) {
@@ -210,6 +223,7 @@ public class ValueDomainService {
             if (opt.getValue() != null && !opt.getValue().trim().isEmpty()) {
                 ValueDomainItem item = new ValueDomainItem();
                 item.setDomainId(domainId);
+                item.setItemCode(opt.getCode());
                 item.setItemValue(opt.getValue());
                 item.setSort(opt.getSort() != null ? opt.getSort() : 0);
                 item.setStatus("启用");
@@ -223,13 +237,36 @@ public class ValueDomainService {
      */
     @Transactional
     public void delete(Long id) {
-        valueDomainRepository.findById(id)
+        ValueDomain entity = valueDomainRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("值域不存在: " + id));
+
+        // 检查是否已发布，发布后不可删除
+        if ("启用".equals(entity.getStatus())) {
+            throw new RuntimeException("已发布的值域不可删除");
+        }
 
         // 先删除值域项
         valueDomainItemRepository.deleteByDomainId(id);
         // 再删除值域
         valueDomainRepository.deleteById(id);
+    }
+
+    /**
+     * 发布值域（草稿 -> 启用）
+     */
+    @Transactional
+    public ValueDomainDto publish(Long id) {
+        ValueDomain entity = valueDomainRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("值域不存在: " + id));
+
+        // 检查是否为草稿状态
+        if (!"草稿".equals(entity.getStatus())) {
+            throw new RuntimeException("只有草稿状态的值域才能发布");
+        }
+
+        entity.setStatus("启用");
+        ValueDomain saved = valueDomainRepository.save(entity);
+        return toDto(saved);
     }
 
     /**

@@ -171,6 +171,12 @@ const routes = [
       },
       // 数据质量管理
       {
+        path: 'quality/template',
+        name: 'QualityTemplate',
+        component: () => import('../views/quality/template/index.vue'),
+        meta: { title: '规则模板' }
+      },
+      {
         path: 'quality/rule',
         name: 'QualityRule',
         component: () => import('../views/quality/rule/index.vue'),

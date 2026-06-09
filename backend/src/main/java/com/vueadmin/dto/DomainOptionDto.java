@@ -14,6 +14,11 @@ import lombok.NoArgsConstructor;
 public class DomainOptionDto {
 
     /**
+     * 选项编码
+     */
+    private String code;
+
+    /**
      * 选项值
      */
     private String value;
@@ -42,6 +47,17 @@ public class DomainOptionDto {
      * 简单构造方法
      */
     public DomainOptionDto(String value, String label, Integer sort) {
+        this.value = value;
+        this.label = label;
+        this.sort = sort;
+        this.disabled = false;
+    }
+
+    /**
+     * 带编码的构造方法
+     */
+    public DomainOptionDto(String code, String value, String label, Integer sort) {
+        this.code = code;
         this.value = value;
         this.label = label;
         this.sort = sort;

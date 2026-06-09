@@ -146,7 +146,7 @@ public class DataCategoryService {
     }
 
     /**
-     * 删除分类
+     * 删除分类（支持递归删除子项）
      */
     @Transactional
     public void deleteCategory(Long id) {
@@ -154,14 +154,24 @@ public class DataCategoryService {
                 .orElseThrow(() -> new BusinessException("分类不存在"));
 
         if ("folder".equals(category.getType())) {
-            // 检查是否有子项
-            List<DataCategory> children = categoryRepository.findByParentId(id);
-            if (!children.isEmpty()) {
-                throw new BusinessException("该文件夹下有子项，不能删除");
-            }
+            // 递归删除所有子项
+            deleteChildrenRecursively(id);
         }
 
         categoryRepository.deleteById(id);
+    }
+
+    /**
+     * 递归删除子项
+     */
+    private void deleteChildrenRecursively(Long parentId) {
+        List<DataCategory> children = categoryRepository.findByParentId(parentId);
+        for (DataCategory child : children) {
+            if ("folder".equals(child.getType())) {
+                deleteChildrenRecursively(child.getId());
+            }
+            categoryRepository.deleteById(child.getId());
+        }
     }
 
     /**

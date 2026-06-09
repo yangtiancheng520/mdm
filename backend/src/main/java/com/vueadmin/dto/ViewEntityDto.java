@@ -15,6 +15,7 @@ public class ViewEntityDto {
     private String entityCode;
     private String entityName;
     private String entityType; // main-主实体 sub-子实体
+    private String tableName; // 物理表名
 
     // 子实体配置
     private Integer sort;

@@ -167,7 +167,7 @@ public class ViewDefinitionService {
 
         // 保存实体和字段
         if (dto.getEntities() != null) {
-            saveEntities(view.getId(), dto.getEntities());
+            saveEntities(view.getId(), dto.getEntities(), dto.getViewCode());
         }
 
         // 保存校验规则
@@ -179,7 +179,9 @@ public class ViewDefinitionService {
     }
 
     /**
-     * 更新视图（草稿状态直接更新，已发布状态创建新版本）
+     * 更新视图
+     * - 草稿/修订中状态：可以更新所有信息
+     * - 已发布状态：只能更新基本信息（视图名称、分类、描述说明）
      */
     @Transactional
     public ViewDefinitionDto updateView(Long id, ViewDefinitionDto dto) {
@@ -189,8 +191,13 @@ public class ViewDefinitionService {
         String currentUser = getCurrentUser();
 
         if ("published".equals(view.getStatus())) {
-            // 已发布状态，创建新版本
-            return createNewVersion(view, dto);
+            // 已发布状态，只能更新基本信息（视图名称、分类、描述说明）
+            view.setViewName(dto.getViewName());
+            view.setCategoryId(dto.getCategoryId());
+            view.setDescription(dto.getDescription());
+            view.setUpdatedBy(currentUser);
+            view = viewDefinitionRepository.save(view);
+            return getViewDetail(view.getId());
         }
 
         // 草稿状态，直接更新
@@ -211,7 +218,7 @@ public class ViewDefinitionService {
 
         // 保存新的实体和字段
         if (dto.getEntities() != null) {
-            saveEntities(view.getId(), dto.getEntities());
+            saveEntities(view.getId(), dto.getEntities(), view.getViewCode());
         }
 
         // 删除旧的校验规则
@@ -226,49 +233,77 @@ public class ViewDefinitionService {
     }
 
     /**
-     * 创建新版本
+     * 提交审批
      */
-    private ViewDefinitionDto createNewVersion(ViewDefinition oldView, ViewDefinitionDto dto) {
+    @Transactional
+    public ViewDefinitionDto submitForApproval(Long id) {
+        ViewDefinition view = viewDefinitionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("视图不存在"));
+
+        // 只有草稿或修订中状态才能提交审批
+        if (!"draft".equals(view.getStatus()) && !"revising".equals(view.getStatus())) {
+            throw new RuntimeException("只有草稿或修订中状态的视图才能提交审批");
+        }
+
+        // 获取视图详情，校验主表有效性
+        ViewDefinitionDto viewDetail = getViewDetail(id);
+        validateViewForSubmit(viewDetail);
+
         String currentUser = getCurrentUser();
+        view.setStatus("pending_approval");
+        view.setUpdatedBy(currentUser);
+        viewDefinitionRepository.save(view);
 
-        // 将旧版本标记为非最新
-        oldView.setIsLatest(false);
-        viewDefinitionRepository.save(oldView);
+        return getViewDetail(view.getId());
+    }
 
-        // 创建新版本
-        ViewDefinition newView = new ViewDefinition();
-        BeanUtils.copyProperties(oldView, newView, "id", "createdAt", "updatedAt");
-        newView.setVersion(oldView.getVersion() + 1);
-        newView.setBaseVersionId(oldView.getId());
-        newView.setIsLatest(true);
-        newView.setStatus("draft");
-        newView.setPublishTime(null);
+    /**
+     * 撤销审批
+     */
+    @Transactional
+    public ViewDefinitionDto cancelApproval(Long id) {
+        ViewDefinition view = viewDefinitionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("视图不存在"));
 
-        // 更新属性
-        newView.setViewName(dto.getViewName());
-        newView.setCategoryId(dto.getCategoryId());
-        newView.setLayoutColumns(dto.getLayoutColumns());
-        newView.setLabelWidth(dto.getLabelWidth());
-        newView.setEnableCopy(dto.getEnableCopy());
-        newView.setEnableImport(dto.getEnableImport());
-        newView.setEnableExport(dto.getEnableExport());
-        newView.setDescription(dto.getDescription());
-        newView.setCreatedBy(currentUser);
-        newView.setUpdatedBy(currentUser);
-
-        newView = viewDefinitionRepository.save(newView);
-
-        // 保存实体和字段
-        if (dto.getEntities() != null) {
-            saveEntities(newView.getId(), dto.getEntities());
+        // 只有审批中状态才能撤销审批
+        if (!"pending_approval".equals(view.getStatus())) {
+            throw new RuntimeException("只有审批中状态的视图才能撤销审批");
         }
 
-        // 保存校验规则
-        if (dto.getValidations() != null) {
-            saveValidations(newView.getId(), dto.getValidations());
+        String currentUser = getCurrentUser();
+        // 撤销审批，退回草稿状态
+        view.setStatus("draft");
+        view.setUpdatedBy(currentUser);
+        viewDefinitionRepository.save(view);
+
+        return getViewDetail(view.getId());
+    }
+
+    /**
+     * 审批视图（审批通过后状态保持pending_approval，等待发布）
+     */
+    @Transactional
+    public ViewDefinitionDto approveView(Long id, boolean approved, String comment) {
+        ViewDefinition view = viewDefinitionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("视图不存在"));
+
+        // 只有审批中状态才能审批
+        if (!"pending_approval".equals(view.getStatus())) {
+            throw new RuntimeException("只有审批中状态的视图才能进行审批");
         }
 
-        return getViewDetail(newView.getId());
+        String currentUser = getCurrentUser();
+        if (approved) {
+            // 审批通过，状态保持pending_approval，等待发布
+            view.setStatus("pending_approval");
+        } else {
+            // 审批驳回，退回草稿状态
+            view.setStatus("draft");
+        }
+        view.setUpdatedBy(currentUser);
+        viewDefinitionRepository.save(view);
+
+        return getViewDetail(view.getId());
     }
 
     /**
@@ -279,8 +314,9 @@ public class ViewDefinitionService {
         ViewDefinition view = viewDefinitionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("视图不存在"));
 
-        if (!"draft".equals(view.getStatus()) && !"revising".equals(view.getStatus())) {
-            throw new RuntimeException("只有草稿或修订中状态的视图可以发布");
+        // 只有审批中(pending_approval)状态才能发布
+        if (!"pending_approval".equals(view.getStatus())) {
+            throw new RuntimeException("只有审批通过的视图才能发布，请先提交审批并等待审批通过");
         }
 
         // 获取视图详情（包含实体和字段）
@@ -347,6 +383,29 @@ public class ViewDefinitionService {
         viewDefinitionRepository.save(view);
 
         return getViewDetail(view.getId());
+    }
+
+    /**
+     * 校验视图是否可以提交审批
+     */
+    private void validateViewForSubmit(ViewDefinitionDto view) {
+        if (view.getEntities() == null || view.getEntities().isEmpty()) {
+            throw new RuntimeException("视图缺少实体定义");
+        }
+
+        // 检查主表
+        ViewEntityDto mainEntity = view.getEntities().stream()
+                .filter(e -> "main".equals(e.getEntityType()))
+                .findFirst()
+                .orElse(null);
+
+        if (mainEntity == null) {
+            throw new RuntimeException("视图缺少主表，请先添加主表");
+        }
+
+        if (mainEntity.getFields() == null || mainEntity.getFields().isEmpty()) {
+            throw new RuntimeException("主表没有字段定义，请先添加字段");
+        }
     }
 
     /**
@@ -707,13 +766,22 @@ public class ViewDefinitionService {
 
     // ========== 私有方法 ==========
 
-    private void saveEntities(Long viewId, List<ViewEntityDto> entityDtos) {
+    private void saveEntities(Long viewId, List<ViewEntityDto> entityDtos, String viewCode) {
         String currentUser = getCurrentUser();
 
         for (ViewEntityDto entityDto : entityDtos) {
             ViewEntity entity = new ViewEntity();
             BeanUtils.copyProperties(entityDto, entity, "id", "groups", "fields");
             entity.setViewId(viewId);
+
+            // 计算并设置物理表名
+            String tableName;
+            if ("main".equals(entityDto.getEntityType())) {
+                tableName = "mdm_" + viewCode.toLowerCase();
+            } else {
+                tableName = "mdm_" + viewCode.toLowerCase() + "_" + entityDto.getEntityCode().toLowerCase();
+            }
+            entity.setTableName(tableName);
 
             // 判断是否为继承实体
             if (entityDto.getIsInherited() != null) {

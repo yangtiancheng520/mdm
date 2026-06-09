@@ -214,6 +214,25 @@ public class ValueDomainController {
     }
 
     /**
+     * 发布值域（草稿 -> 启用）
+     *
+     * @param id 主键ID
+     * @return 更新后的值域
+     */
+    @PutMapping("/{id}/publish")
+    @Operation(summary = "发布值域", description = "发布值域（草稿 -> 启用）")
+    public ApiResponse<ValueDomainDto> publish(
+            @Parameter(description = "值域ID")
+            @PathVariable Long id) {
+        try {
+            ValueDomainDto result = valueDomainService.publish(id);
+            return ApiResponse.success("发布成功", result);
+        } catch (RuntimeException e) {
+            return ApiResponse.error(400, e.getMessage());
+        }
+    }
+
+    /**
      * 批量删除值域
      *
      * @param params 包含ids的参数

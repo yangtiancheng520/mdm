@@ -129,6 +129,17 @@ public class FormService {
         Form form = formRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("表单不存在"));
 
+        // 草稿状态可以修改表单编码
+        if ("draft".equals(form.getStatus()) && request.getFormCode() != null && !request.getFormCode().isEmpty()) {
+            // 如果编码有变化，检查唯一性
+            if (!request.getFormCode().equals(form.getFormCode())) {
+                if (formRepository.existsByFormCode(request.getFormCode())) {
+                    throw new BusinessException("表单编码已存在");
+                }
+                form.setFormCode(request.getFormCode());
+            }
+        }
+
         form.setFormName(request.getFormName());
         form.setFormType(request.getFormType());
         form.setViewId(request.getViewId());

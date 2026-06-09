@@ -181,20 +181,6 @@ export const SEGMENT_TYPE_OPTIONS: {
     description: '根据业务字段值返回不同编码',
     example: '产成品→5，原材料→1',
     exampleResult: '5'
-  },
-  {
-    value: 'field',
-    label: '字段引用',
-    description: '引用业务数据中的字段值',
-    example: '引用：plantCode',
-    exampleResult: 'BJ01'
-  },
-  {
-    value: 'category',
-    label: '分类编码',
-    description: '分类字段值映射到编码',
-    example: 'A001→01，B001→11',
-    exampleResult: '01'
   }
 ]
 

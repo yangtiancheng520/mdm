@@ -7,6 +7,8 @@ import {
   getViewDetail,
   createView,
   updateView,
+  submitForApproval,
+  approveView,
   publishView,
   disableView,
   enableView,
@@ -26,6 +28,7 @@ import {
 import MdmDialog from '@/components/MdmDialog.vue'
 import MdmConfirmDialog from '@/components/MdmConfirmDialog.vue'
 import TreeNode from './TreeNode.vue'
+import CategoryTreeSelect from '@/components/common/CategoryTreeSelect.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -400,136 +403,6 @@ const handleConfirmDelete = async () => {
   }
 }
 
-// 查看数据
-const handlePublish = async () => {
-  // 校验：只能选择一条
-  if (selectedRows.value.length === 0) {
-    ElMessage.warning('请选择要发布的视图')
-    return
-  }
-  if (selectedRows.value.length > 1) {
-    ElMessage.warning('只能选择一个视图进行发布')
-    return
-  }
-
-  const row = selectedRows.value[0]
-
-  // 校验：状态必须是草稿或修订中
-  if (row.status === 'published') {
-    ElMessage.warning('该视图已发布，请创建新版本后再发布')
-    return
-  }
-  if (row.status === 'disabled') {
-    ElMessage.warning('该视图已停用，请先启用')
-    return
-  }
-
-  // 获取视图详情，检查数据有效性
-  try {
-    const res = await getViewDetail(row.id!)
-    if (res.code !== 200 || !res.data) {
-      ElMessage.error('获取视图详情失败')
-      return
-    }
-
-    const viewDetail = res.data
-
-    // 校验：主表必须有字段
-    const mainEntity = viewDetail.entities?.find(e => e.entityType === 'main')
-    if (!mainEntity) {
-      ElMessage.warning('视图缺少主表，请先设计主表')
-      return
-    }
-    if (!mainEntity.fields || mainEntity.fields.length === 0) {
-      ElMessage.warning('主表没有字段，请先添加字段')
-      return
-    }
-
-    // 准备确认信息
-    const isRevising = viewDetail.status === 'revising'
-    const mainTableName = `mdm_${viewDetail.viewCode?.toLowerCase()}`
-
-    // 检查哪些表需要新建，哪些需要更新
-    const checkTableExists = async (tableName: string) => {
-      // 这里简化处理，实际应该调用后端接口检查
-      // 修订版本默认主表和继承的子表已存在，新增的子表需要创建
-      return isRevising
-    }
-
-    let confirmMessage = `确定要发布视图【${viewDetail.viewName}】吗？\n\n`
-
-    if (isRevising) {
-      // 修订版本发布
-      const inheritedEntities = viewDetail.entities?.filter(e => e.isInherited) || []
-      const newEntities = viewDetail.entities?.filter(e => !e.isInherited) || []
-
-      confirmMessage += `此操作将：\n\n`
-
-      // 更新的表
-      if (inheritedEntities.length > 0 || viewDetail.entities?.some(e => e.entityType === 'main')) {
-        confirmMessage += `📋 更新已有表：\n`
-        confirmMessage += `  • ${mainTableName}（主表）\n`
-        inheritedEntities.forEach(entity => {
-          if (entity.entityType === 'sub') {
-            confirmMessage += `  • mdm_${viewDetail.viewCode?.toLowerCase()}_${entity.entityCode?.toLowerCase()}（${entity.entityName}）\n`
-          }
-        })
-        confirmMessage += `\n`
-      }
-
-      // 新建的表
-      if (newEntities.length > 0) {
-        confirmMessage += `➕ 新建表：\n`
-        newEntities.forEach(entity => {
-          if (entity.entityType === 'sub') {
-            confirmMessage += `  • mdm_${viewDetail.viewCode?.toLowerCase()}_${entity.entityCode?.toLowerCase()}（${entity.entityName}）\n`
-          }
-        })
-        confirmMessage += `\n`
-      }
-
-      confirmMessage += `发布后将成为新版本V${(viewDetail.version || 1) + 1}，原版本将变为历史版本。`
-    } else {
-      // 新视图发布
-      const subTableNames = viewDetail.entities
-        ?.filter(e => e.entityType === 'sub')
-        .map(sub => `mdm_${viewDetail.viewCode?.toLowerCase()}_${sub.entityCode?.toLowerCase()}`) || []
-
-      confirmMessage += `将创建以下物理表：\n`
-      confirmMessage += `• ${mainTableName}（主表）\n`
-      if (subTableNames.length > 0) {
-        confirmMessage += subTableNames.map(t => `• ${t}（子表）`).join('\n')
-      }
-    }
-
-    // 确认弹窗
-    await ElMessageBox.confirm(
-      confirmMessage,
-      '发布确认',
-      {
-        type: 'warning',
-        confirmButtonText: '确定发布',
-        cancelButtonText: '取消'
-      }
-    )
-
-    // 执行发布
-    const publishRes = await publishView(row.id!)
-    if (publishRes.code === 200) {
-      ElMessage.success('发布成功')
-      selectedRows.value = [] // 清空选中
-      loadData()
-    } else {
-      ElMessage.error(publishRes.message || '发布失败')
-    }
-  } catch (error: any) {
-    if (error !== 'cancel') {
-      console.error('发布失败', error)
-      ElMessage.error(error.response?.data?.message || error.message || '发布失败')
-    }
-  }
-}
-
 // 查看历史版本
 const handleHistory = async () => {
   if (selectedRows.value.length === 0) {
@@ -586,6 +459,113 @@ const handleRevise = async (row: ViewDefinition) => {
   } catch (error: any) {
     if (error !== 'cancel') {
       ElMessage.error(error.response?.data?.message || '修订失败')
+    }
+  }
+}
+
+// 提交审批
+const handleSubmitApproval = async (row: ViewDefinition) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要提交视图【${row.viewName}】进行审批吗？\n提交后将进入审批流程，审批通过后才能发布。`,
+      '提交审批',
+      { type: 'info', confirmButtonText: '确定', cancelButtonText: '取消' }
+    )
+
+    const res = await submitForApproval(row.id!)
+    if (res.code === 200) {
+      ElMessage.success('提交审批成功，请等待审批')
+      loadData()
+    } else {
+      ElMessage.error(res.message || '提交审批失败')
+    }
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('提交审批失败', error)
+      ElMessage.error(error.response?.data?.message || error.message || '提交审批失败')
+    }
+  }
+}
+
+// 审批通过（调用发布流程）
+const handleApprove = async (row: ViewDefinition) => {
+  try {
+    // 获取视图详情，检查数据有效性
+    const res = await getViewDetail(row.id!)
+    if (res.code !== 200 || !res.data) {
+      ElMessage.error('获取视图详情失败')
+      return
+    }
+
+    const viewDetail = res.data
+
+    // 校验：主表必须有字段
+    const mainEntity = viewDetail.entities?.find(e => e.entityType === 'main')
+    if (!mainEntity) {
+      ElMessage.warning('视图缺少主表，请先设计主表')
+      return
+    }
+    if (!mainEntity.fields || mainEntity.fields.length === 0) {
+      ElMessage.warning('主表没有字段，请先添加字段')
+      return
+    }
+
+    const mainTableName = `mdm_${viewDetail.viewCode?.toLowerCase()}`
+
+    let confirmMessage = `确定要审批通过视图【${viewDetail.viewName}】吗？\n\n`
+    confirmMessage += `审批通过后将创建以下物理表：\n`
+    confirmMessage += `• ${mainTableName}（主表）\n`
+
+    const subTableNames = viewDetail.entities
+      ?.filter(e => e.entityType === 'sub')
+      .map(sub => `mdm_${viewDetail.viewCode?.toLowerCase()}_${sub.entityCode?.toLowerCase()}`) || []
+
+    if (subTableNames.length > 0) {
+      confirmMessage += subTableNames.map(t => `• ${t}（子表）`).join('\n')
+    }
+
+    await ElMessageBox.confirm(confirmMessage, '审批确认', {
+      type: 'warning',
+      confirmButtonText: '确定审批',
+      cancelButtonText: '取消'
+    })
+
+    // 执行发布
+    const publishRes = await publishView(row.id!)
+    if (publishRes.code === 200) {
+      ElMessage.success('审批通过，视图已发布')
+      loadData()
+    } else {
+      ElMessage.error(publishRes.message || '审批失败')
+    }
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('审批失败', error)
+      ElMessage.error(error.response?.data?.message || error.message || '审批失败')
+    }
+  }
+}
+
+// 驳回审批
+const handleReject = async (row: ViewDefinition) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要驳回视图【${row.viewName}】的审批申请吗？\n驳回后将退回草稿状态，可以重新编辑和提交。`,
+      '驳回确认',
+      { type: 'warning', confirmButtonText: '确定驳回', cancelButtonText: '取消' }
+    )
+
+    const res = await approveView(row.id!, { approved: false })
+    if (res.code === 200) {
+      ElMessage.success('驳回成功，视图已退回草稿状态')
+      loadData()
+    } else {
+      ElMessage.error(res.message || '驳回失败')
+    }
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('驳回失败', error)
+      ElMessage.error(error.response?.data?.message || error.message || '驳回失败')
     }
   }
 }
@@ -648,6 +628,7 @@ const formatDateTime = (datetime: string | undefined) => {
 const getStatusLabel = (status: string) => {
   const labels: Record<string, string> = {
     draft: '草稿',
+    pending_approval: '审批中',
     revising: '修订中',
     published: '已发布',
     disabled: '已停用',
@@ -729,14 +710,13 @@ onMounted(() => {
             <select v-model="queryParams.status" @change="handleSearch">
               <option value="">全部状态</option>
               <option value="draft">草稿</option>
+              <option value="pending_approval">审批中</option>
               <option value="published">已发布</option>
-              <option value="archived">已归档</option>
+              <option value="disabled">已停用</option>
             </select>
           </div>
         </div>
         <div class="mdm-right-group">
-          <button class="mdm-btn-outline" @click="handlePublish">发布</button>
-          <span class="btn-divider"></span>
           <button class="mdm-btn-red" @click="handleAdd">+ 新增</button>
           <button class="mdm-btn-outline" @click="handleSearch">查询</button>
           <button class="mdm-btn-outline" @click="handleReset">重置</button>
@@ -779,8 +759,11 @@ onMounted(() => {
                 <div class="action-btns">
                   <button v-if="row.status === 'draft'" class="action-btn design" @click="handleDesign(row)">设计</button>
                   <button v-if="row.status === 'revising'" class="action-btn design" @click="handleDesign(row)">继续设计</button>
-                  <button v-if="row.status === 'draft' || row.status === 'revising'" class="action-btn edit" @click="handleEdit(row)">编辑</button>
-                  <button v-if="row.status === 'published' || row.status === 'disabled'" class="action-btn view" @click="handleViewData(row)">查看</button>
+                  <button v-if="row.status === 'draft' || row.status === 'revising' || row.status === 'published'" class="action-btn edit" @click="handleEdit(row)">编辑</button>
+                  <button v-if="row.status === 'draft' || row.status === 'revising'" class="action-btn submit" @click="handleSubmitApproval(row)">提交审批</button>
+                  <button v-if="row.status === 'pending_approval' || row.status === 'published' || row.status === 'disabled'" class="action-btn view" @click="handleViewData(row)">查看</button>
+                  <button v-if="row.status === 'pending_approval'" class="action-btn approve" @click="handleApprove(row)">审批</button>
+                  <button v-if="row.status === 'pending_approval'" class="action-btn reject" @click="handleReject(row)">驳回</button>
                   <button v-if="row.status === 'published'" class="action-btn revise" @click="handleRevise(row)">修订</button>
                   <button v-if="row.status === 'published'" class="action-btn disable" @click="handleDisable(row)">停用</button>
                   <button v-if="row.status === 'disabled'" class="action-btn enable" @click="handleEnable(row)">启用</button>
@@ -809,12 +792,12 @@ onMounted(() => {
       </div>
       <div class="mdm-form-row">
         <div class="mdm-form-label">所属分类</div>
-        <select v-model="formData.categoryId" class="mdm-select">
-          <option :value="undefined">请选择分类</option>
-          <option v-for="cat in categoryTreeData" :key="cat.id" :value="cat.id">
-            {{ cat.categoryName }}
-          </option>
-        </select>
+        <CategoryTreeSelect
+          v-model="formData.categoryId"
+          :tree-data="categoryTreeData"
+          placeholder="请选择分类"
+          :show-all="false"
+        />
       </div>
       <div class="mdm-form-row">
         <div class="mdm-form-label">描述说明</div>
@@ -893,7 +876,6 @@ onMounted(() => {
               </div>
             </div>
             <div class="timeline-footer">
-              <button class="action-btn view" @click="handleView(item)">查看详情</button>
               <button v-if="item.status === 'published'" class="action-btn data" @click="handleViewData(item)">查看数据</button>
             </div>
           </div>
@@ -1104,13 +1086,10 @@ onMounted(() => {
     color: #909399;
   }
 
-// 版本后缀
-.version-suffix {
-  display: inline-block;
-  margin-left: 4px;
-  font-size: 12px;
-  color: #faad14;
-}
+  &.pending_approval {
+    background: #e6f7ff;
+    color: #1890ff;
+  }
 
   &.revising {
     background: #f9f0ff;
@@ -1133,6 +1112,14 @@ onMounted(() => {
   }
 }
 
+// 版本后缀
+.version-suffix {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 12px;
+  color: #faad14;
+}
+
 // 操作按钮
 .action-btns {
   display: flex;
@@ -1150,6 +1137,10 @@ onMounted(() => {
     &.design { color: #ed2b33; font-weight: 500; }
     &.view { color: #1890ff; }
     &.edit { color: #1890ff; }
+    &.submit { color: #1890ff; }
+    &.approve { color: #52c41a; }
+    &.reject { color: #f56c6c; }
+    &.cancel { color: #909399; }
     &.revise { color: #722ed1; }
     &.disable { color: #faad14; }
     &.enable { color: #52c41a; }

@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 视图定义Controller
@@ -75,10 +76,44 @@ public class ViewDefinitionController {
     }
 
     /**
+     * 提交审批
+     */
+    @PostMapping("/{id}/submit")
+    @Operation(summary = "提交审批", description = "将视图提交审批，需要验证主表有效性")
+    public ApiResponse<ViewDefinitionDto> submitForApproval(@PathVariable Long id) {
+        ViewDefinitionDto view = viewDefinitionService.submitForApproval(id);
+        return ApiResponse.success(view);
+    }
+
+    /**
+     * 审批视图
+     */
+    @PostMapping("/{id}/approve")
+    @Operation(summary = "审批视图", description = "审批已提交的视图，通过或驳回")
+    public ApiResponse<ViewDefinitionDto> approveView(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> params) {
+        boolean approved = Boolean.TRUE.equals(params.get("approved"));
+        String comment = (String) params.get("comment");
+        ViewDefinitionDto view = viewDefinitionService.approveView(id, approved, comment);
+        return ApiResponse.success(view);
+    }
+
+    /**
+     * 撤销审批
+     */
+    @PostMapping("/{id}/cancel")
+    @Operation(summary = "撤销审批", description = "撤销已提交的审批申请，退回草稿状态")
+    public ApiResponse<ViewDefinitionDto> cancelApproval(@PathVariable Long id) {
+        ViewDefinitionDto view = viewDefinitionService.cancelApproval(id);
+        return ApiResponse.success(view);
+    }
+
+    /**
      * 发布视图
      */
     @PostMapping("/{id}/publish")
-    @Operation(summary = "发布视图", description = "将草稿或修订中状态的视图发布")
+    @Operation(summary = "发布视图", description = "将审批通过的视图发布")
     public ApiResponse<ViewDefinitionDto> publishView(@PathVariable Long id) {
         ViewDefinitionDto view = viewDefinitionService.publishView(id);
         return ApiResponse.success(view);

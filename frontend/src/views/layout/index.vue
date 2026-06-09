@@ -156,6 +156,12 @@ onMounted(async () => {
 
       <div class="header-right">
         <div class="header-actions">
+          <!-- 右上角LOGO -->
+          <div class="top-logo">
+            <img src="/智远工创.png" alt="智远工创" />
+          </div>
+          <!-- 分隔线 -->
+          <div class="header-divider"></div>
           <!-- 用户信息 -->
           <div class="user-dropdown" @click="handleLogout">
             <div class="user-avatar">
@@ -403,13 +409,34 @@ onMounted(async () => {
   gap: 24px;
 }
 
+.top-logo {
+  margin-right: -15px;
+}
+
+.top-logo img {
+  height: 24px;
+  width: auto;
+  transition: transform 0.3s ease;
+}
+
+.top-logo img:hover {
+  transform: scale(1.05);
+}
+
+.header-divider {
+  width: 1px;
+  height: 24px;
+  background: #d0d9e6;
+  margin: 0 8px;
+}
+
 .user-dropdown {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   color: #4a5b6e;
   cursor: pointer;
-  padding: 6px 12px;
+  padding: 4px 8px;
   border-radius: 40px;
   transition: all 0.2s;
 }
@@ -420,8 +447,8 @@ onMounted(async () => {
 }
 
 .user-avatar {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   overflow: hidden;
   background: #ffe0d9;

@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.*;
 
 /**
@@ -31,6 +32,7 @@ public class PhysicalTableDataService {
     private final EntityManager entityManager;
     private final DataOperationLogService operationLogService;
     private final EncodingGeneratorService encodingGeneratorService;
+    private final OperationLogService logService; // 新增：操作日志服务
 
     /**
      * 查询数据列表（从物理表）
@@ -71,7 +73,8 @@ public class PhysicalTableDataService {
         if (status != null && !status.isEmpty()) {
             sql.append(" WHERE status = ? ORDER BY created_at DESC");
         } else {
-            sql.append(" WHERE status IN ('DRAFT', 'PENDING', 'ACTIVE') ORDER BY created_at DESC");
+            // 默认查询所有状态（包括已作废），按创建时间倒序
+            sql.append(" WHERE status IN ('DRAFT', 'PENDING', 'PENDING_QC', 'ACTIVE_QUALIFIED', 'ACTIVE_UNQUALIFIED', 'OBSOLETE') ORDER BY created_at DESC");
         }
 
         log.info("执行SQL: {}", sql.toString());
@@ -214,8 +217,8 @@ public class PhysicalTableDataService {
             }
         }
 
-        // 5. 记录创建操作日志（只存储摘要）
-        operationLogService.logCreateOperation(categoryId, formId, mainRecordId, mainTableName, data, createdBy);
+        // 7. 记录创建操作日志（状态变更：创建草稿）
+        logService.logCreate(categoryId, formId, mainRecordId, createdBy);
 
         return mainRecordId;
     }
@@ -259,9 +262,19 @@ public class PhysicalTableDataService {
             }
         }
 
-        // 5. 计算增量数据并记录日志
-        Map<String, Object> changes = calculateChanges(oldData, data, mainEntity, subEntities);
-        operationLogService.logUpdateOperation(categoryId, formId, recordId, changes, updatedBy);
+        // 5. 判断是否为纯状态变更（只有status字段）
+        boolean isPureStatusChange = data.size() == 1 && data.containsKey("status");
+
+        // 6. 记录日志
+        if (isPureStatusChange) {
+            // 纯状态变更，只记录状态变更日志
+            logStatusChangeIfNeeded(categoryId, formId, recordId, oldData, data, null, updatedBy);
+        } else {
+            // 计算增量数据（用于日志详情）
+            Map<String, Object> changes = calculateChanges(oldData, data, mainEntity, subEntities);
+            // 记录状态变更或更新日志
+            logStatusChangeIfNeeded(categoryId, formId, recordId, oldData, data, changes, updatedBy);
+        }
     }
 
     /**
@@ -671,6 +684,95 @@ public class PhysicalTableDataService {
                             field.getFieldName(), e.getMessage(), e);
                     throw new BusinessException("生成「" + field.getFieldName() + "」自动编号失败: " + e.getMessage());
                 }
+            }
+        }
+    }
+
+    /**
+     * 记录状态变更日志（辅助方法）
+     * 在更新数据时，如果包含status字段，自动记录状态变更日志
+     * 如果只是普通更新（无状态变更），记录普通更新日志
+     */
+    private void logStatusChangeIfNeeded(Long categoryId, Long formId, Long recordId,
+                                         Map<String, Object> oldData, Map<String, Object> newData,
+                                         Map<String, Object> changes, String user) {
+        String newStatus = (String) newData.get("status");
+
+        // 从 oldData 中获取旧状态
+        String oldStatus = null;
+        if (oldData != null && oldData.get("main") instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> mainData = (Map<String, Object>) oldData.get("main");
+            oldStatus = mainData != null ? (String) mainData.get("status") : null;
+        }
+
+        // 判断是否有状态变更
+        boolean statusChanged = newStatus != null && !newStatus.equals(oldStatus);
+
+        if (statusChanged) {
+            // 有状态变更，根据状态变更类型记录不同的日志
+            switch (newStatus) {
+                case "PENDING":
+                    logService.logSubmitApproval(categoryId, formId, recordId, user);
+                    break;
+                case "PENDING_QC":
+                    logService.logApprove(categoryId, formId, recordId, user);
+                    break;
+                case "DRAFT":
+                    if ("PENDING".equals(oldStatus)) {
+                        String reason = (String) newData.get("rejectReason");
+                        logService.logReject(categoryId, formId, recordId, reason, user);
+                    } else if ("OBSOLETE".equals(oldStatus)) {
+                        logService.logRestore(categoryId, formId, recordId, user);
+                    } else {
+                        // 其他情况记录普通更新日志
+                        operationLogService.logUpdateOperation(categoryId, formId, recordId, changes, user);
+                    }
+                    break;
+                case "ACTIVE_QUALIFIED":
+                    // 质检合格日志：记录评分
+                    if ("PENDING_QC".equals(oldStatus) || "ACTIVE_UNQUALIFIED".equals(oldStatus)) {
+                        Object scoreObj = newData.get("qualityScore");
+                        BigDecimal qualityScore = null;
+                        if (scoreObj != null) {
+                            try {
+                                qualityScore = new BigDecimal(scoreObj.toString());
+                            } catch (Exception ignored) {}
+                        }
+                        logService.logQualityPass(categoryId, formId, recordId, qualityScore, null, user);
+                    } else {
+                        operationLogService.logUpdateOperation(categoryId, formId, recordId, changes, user);
+                    }
+                    break;
+                case "ACTIVE_UNQUALIFIED":
+                    // 质检不合格日志：记录评分和问题
+                    if ("PENDING_QC".equals(oldStatus) || "ACTIVE_UNQUALIFIED".equals(oldStatus)) {
+                        Object scoreObj = newData.get("qualityScore");
+                        Object issuesObj = newData.get("qualityIssues");
+                        BigDecimal qualityScore = null;
+                        if (scoreObj != null) {
+                            try {
+                                qualityScore = new BigDecimal(scoreObj.toString());
+                            } catch (Exception ignored) {}
+                        }
+                        logService.logQualityFail(categoryId, formId, recordId, qualityScore, issuesObj, user);
+                    } else {
+                        operationLogService.logUpdateOperation(categoryId, formId, recordId, changes, user);
+                    }
+                    break;
+                case "OBSOLETE":
+                    String reason = (String) newData.get("obsoleteReason");
+                    logService.logObsolete(categoryId, formId, recordId, reason, user);
+                    break;
+                default:
+                    // 未知状态，记录普通更新日志
+                    operationLogService.logUpdateOperation(categoryId, formId, recordId, changes, user);
+                    break;
+            }
+        } else {
+            // 无状态变更，只记录普通更新日志（如果有变更）
+            if (changes != null && !changes.isEmpty()) {
+                operationLogService.logUpdateOperation(categoryId, formId, recordId, changes, user);
             }
         }
     }

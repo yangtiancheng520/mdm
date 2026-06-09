@@ -90,7 +90,7 @@ public class ValueDomain {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
-        if (status == null) status = "启用";
+        if (status == null) status = "草稿";
         if (dataType == null) dataType = "string";
     }
 

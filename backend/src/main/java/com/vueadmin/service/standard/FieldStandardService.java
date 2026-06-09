@@ -184,10 +184,8 @@ public class FieldStandardService {
         entity.setDescription(dto.getDescription());
         entity.setCreatedBy(dto.getCreatedBy());
 
-        // 设置默认状态
-        if (dto.getStatus() != null) {
-            entity.setStatus(dto.getStatus());
-        }
+        // 新建时默认状态为草稿
+        entity.setStatus("草稿");
         if (dto.getVersion() != null) {
             entity.setVersion(dto.getVersion());
         }
@@ -208,6 +206,7 @@ public class FieldStandardService {
         FieldStandard entity = fieldStandardRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("字段标准不存在: " + id));
 
+        // 已启用的字段也可以修改（但某些关键字段可能需要保护）
         // 如果字段编码变更，检查新编码是否已存在
         if (!entity.getFieldCode().equals(dto.getFieldCode())) {
             if (fieldStandardRepository.existsByFieldCode(dto.getFieldCode())) {
@@ -243,19 +242,29 @@ public class FieldStandardService {
         FieldStandard entity = fieldStandardRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("字段标准不存在: " + id));
 
+        // 检查是否已发布，发布后不可删除
+        if ("启用".equals(entity.getStatus())) {
+            throw new RuntimeException("已发布的字段标准不可删除");
+        }
+
         fieldStandardRepository.deleteById(id);
     }
 
     /**
-     * 启用字段标准
+     * 发布字段标准（草稿 -> 启用）
      *
      * @param id 主键ID
      * @return 更新后的字段标准DTO
      */
     @Transactional
-    public FieldStandardDto activate(Long id) {
+    public FieldStandardDto publish(Long id) {
         FieldStandard entity = fieldStandardRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("字段标准不存在: " + id));
+
+        // 检查是否为草稿状态
+        if (!"草稿".equals(entity.getStatus())) {
+            throw new RuntimeException("只有草稿状态的字段标准才能发布");
+        }
 
         entity.setStatus("启用");
         FieldStandard saved = fieldStandardRepository.save(entity);
@@ -263,12 +272,25 @@ public class FieldStandardService {
     }
 
     /**
-     * 停用字段标准
+     * 启用字段标准（已废弃，请使用publish）
      *
      * @param id 主键ID
      * @return 更新后的字段标准DTO
      */
     @Transactional
+    @Deprecated
+    public FieldStandardDto activate(Long id) {
+        return publish(id);
+    }
+
+    /**
+     * 停用字段标准（已废弃）
+     *
+     * @param id 主键ID
+     * @return 更新后的字段标准DTO
+     */
+    @Transactional
+    @Deprecated
     public FieldStandardDto deactivate(Long id) {
         FieldStandard entity = fieldStandardRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("字段标准不存在: " + id));

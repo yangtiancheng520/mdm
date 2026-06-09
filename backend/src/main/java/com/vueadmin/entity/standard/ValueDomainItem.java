@@ -27,6 +27,12 @@ public class ValueDomainItem {
     private Long domainId;
 
     /**
+     * 值域项编码
+     */
+    @Column(name = "item_code", length = 100)
+    private String itemCode;
+
+    /**
      * 值
      */
     @Column(name = "item_value", length = 200)

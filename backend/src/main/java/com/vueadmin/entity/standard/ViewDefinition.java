@@ -55,7 +55,7 @@ public class ViewDefinition {
     @Column(name = "enable_export")
     private Boolean enableExport = true;
 
-    // 状态
+    // 状态: draft(草稿), pending_approval(审批中), published(已发布), disabled(已停用), revising(修订中), history(历史版本)
     @Column(name = "status", length = 20)
     private String status = "draft";
 

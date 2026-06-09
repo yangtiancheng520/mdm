@@ -107,6 +107,17 @@ public class DataController {
     }
 
     /**
+     * 查询指定记录的操作日志（按记录ID）
+     */
+    @GetMapping("/{formId}/{recordId}/logs")
+    public ApiResponse<List<DataOperationLogDto>> getRecordLogs(
+            @PathVariable Long formId,
+            @PathVariable Long recordId) {
+        List<DataOperationLogDto> logs = operationLogService.getLogsByRecordId(formId, recordId);
+        return ApiResponse.success(logs);
+    }
+
+    /**
      * 获取当前用户
      */
     private String getCurrentUser() {

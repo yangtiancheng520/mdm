@@ -11,8 +11,7 @@ import {
   updateFieldStandard,
   deleteFieldStandard,
   batchDeleteFieldStandard,
-  activateFieldStandard,
-  deactivateFieldStandard,
+  publishFieldStandard,
   type FieldStandard,
   type FieldStandardForm,
   type FieldStatus,
@@ -54,6 +53,7 @@ const searchForm = ref({
 // 弹窗
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增字段')
+const dialogMode = ref<'create' | 'edit' | 'view'>('create') // 弹窗模式：新增/编辑/查看
 
 // 确认对话框
 const confirmVisible = ref(false)
@@ -71,7 +71,7 @@ const form = ref<FieldStandardForm>({
   categoryId: null,
   isEnum: false,      // 是否关联值域
   domainId: null,     // 值域ID
-  status: '启用',
+  status: '草稿',
   description: '',
   // 扩展配置
   defaultValue: null
@@ -79,8 +79,18 @@ const form = ref<FieldStandardForm>({
 
 // 过滤后的值域列表（按字段类型过滤）
 const filteredDomainList = computed(() => {
-  if (!form.value.fieldType) return []
-  return domainList.value.filter(d => d.dataType === form.value.fieldType)
+  if (!form.value.fieldType) return domainList.value
+
+  // 字段类型映射：字段标准类型 -> 值域数据类型
+  const typeMapping: Record<string, string[]> = {
+    'string': ['string', 'varchar'],    // string 类型匹配 string 和 varchar
+    'integer': ['integer', 'int'],
+    'decimal': ['decimal', 'decimal'],
+    'boolean': ['boolean', 'bool']
+  }
+
+  const allowedTypes = typeMapping[form.value.fieldType] || [form.value.fieldType]
+  return domainList.value.filter(d => allowedTypes.includes(d.dataType))
 })
 
 // 是否支持关联值域的字段类型
@@ -156,7 +166,7 @@ function getCategoryName(categoryId: number | null): string {
 
 // 计算当前状态标签样式
 const getStatusClass = (status: FieldStatus) => {
-  return status === '启用' ? 'status-active' : 'status-inactive'
+  return status === '启用' ? 'status-active' : 'status-draft'
 }
 
 // 获取状态标签文本
@@ -188,7 +198,7 @@ async function fetchData() {
     const params = {
       ...searchForm.value,
       page: currentPage.value,
-      size: pageSize.value
+      pageSize: pageSize.value
     }
     console.log('===== 开始请求 =====')
     console.log('请求参数:', params)
@@ -242,6 +252,7 @@ function handleReset() {
 // 新增
 function handleAdd() {
   dialogTitle.value = '新增字段'
+  dialogMode.value = 'create'
   form.value = {
     fieldCode: '',
     fieldName: '',
@@ -252,7 +263,7 @@ function handleAdd() {
     categoryId: null,
     isEnum: false,
     domainId: null,
-    status: '启用',
+    status: '草稿',
     description: '',
     // 扩展配置
     defaultValue: null
@@ -263,6 +274,7 @@ function handleAdd() {
 // 编辑
 function handleEdit(row: FieldStandard) {
   dialogTitle.value = '编辑字段'
+  dialogMode.value = 'edit'
   form.value = {
     id: row.id,
     fieldCode: row.fieldCode,
@@ -272,7 +284,32 @@ function handleEdit(row: FieldStandard) {
     length: row.length,
     precision: row.precision,
     categoryId: row.categoryId,
-    isEnum: row.isEnum,
+    // 将数字转为布尔值：后端存储 0/1，前端需要 true/false
+    isEnum: row.isEnum === 1 || row.isEnum === true,
+    domainId: row.domainId,
+    status: row.status,
+    description: row.description || '',
+    // 扩展配置
+    defaultValue: row.defaultValue
+  }
+  dialogVisible.value = true
+}
+
+// 查看
+function handleView(row: FieldStandard) {
+  dialogTitle.value = '查看字段'
+  dialogMode.value = 'view'
+  form.value = {
+    id: row.id,
+    fieldCode: row.fieldCode,
+    fieldName: row.fieldName,
+    fieldType: row.fieldType,
+    // 基础配置
+    length: row.length,
+    precision: row.precision,
+    categoryId: row.categoryId,
+    // 将数字转为布尔值：后端存储 0/1，前端需要 true/false
+    isEnum: row.isEnum === 1 || row.isEnum === true,
     domainId: row.domainId,
     status: row.status,
     description: row.description || '',
@@ -318,26 +355,19 @@ function handleBatchDelete() {
   confirmVisible.value = true
 }
 
-// 启用
-async function handleActivate(row: FieldStandard) {
-  try {
-    await activateFieldStandard(row.id)
-    ElMessage.success('启用成功')
-    fetchData()
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.message || '启用失败')
+// 发布（草稿 -> 启用）
+async function handlePublish(row: FieldStandard) {
+  confirmMessage.value = `确定要发布字段「${row.fieldName}」吗？发布后将不可修改和删除。`
+  confirmAction.value = async () => {
+    try {
+      await publishFieldStandard(row.id)
+      ElMessage.success('发布成功')
+      fetchData()
+    } catch (error: any) {
+      ElMessage.error(error.response?.data?.message || '发布失败')
+    }
   }
-}
-
-// 停用
-async function handleDeactivate(row: FieldStandard) {
-  try {
-    await deactivateFieldStandard(row.id)
-    ElMessage.success('停用成功')
-    fetchData()
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.message || '停用失败')
-  }
+  confirmVisible.value = true
 }
 
 // 选择变化
@@ -434,10 +464,21 @@ function handleSizeChange(size: number) {
 
 // 获取操作按钮
 function getActionButtons(row: FieldStandard) {
-  return [
-    { label: '编辑', action: () => handleEdit(row) },
-    { label: '删除', action: () => handleDelete(row), class: 'delete' }
-  ]
+  const buttons = []
+
+  // 草稿状态：可以编辑、发布、删除
+  if (row.status === '草稿') {
+    buttons.push({ label: '编辑', action: () => handleEdit(row) })
+    buttons.push({ label: '发布', action: () => handlePublish(row) })
+    buttons.push({ label: '删除', action: () => handleDelete(row), class: 'delete' })
+  }
+  // 启用状态：可以编辑和查看
+  else if (row.status === '启用') {
+    buttons.push({ label: '编辑', action: () => handleEdit(row) })
+    buttons.push({ label: '查看', action: () => handleView(row) })
+  }
+
+  return buttons
 }
 
 onMounted(() => {
@@ -470,7 +511,7 @@ onMounted(() => {
         <div class="mdm-filter-item">
           <CategoryTreeSelect
             v-model="searchForm.categoryId"
-            placeholder="全部分类"
+            placeholder="全部字典分类"
             :show-all="true"
             :show-search="true"
             @change="handleSearch"
@@ -498,7 +539,7 @@ onMounted(() => {
             <th>长度</th>
             <th>小数位</th>
             <th>值域</th>
-            <th>分类</th>
+            <th>字典分类</th>
             <th>状态</th>
             <th>创建时间</th>
             <th>操作</th>
@@ -517,7 +558,7 @@ onMounted(() => {
             <td>{{ row.domainName || '-' }}</td>
             <td>{{ getCategoryName(row.categoryId) }}</td>
             <td>
-              <span class="custom-status-tag" :class="row.status === '启用' ? 'status-active' : 'status-inactive'">
+              <span class="custom-status-tag" :class="row.status === '启用' ? 'status-active' : 'status-draft'">
                 {{ row.status }}
               </span>
             </td>
@@ -565,15 +606,15 @@ onMounted(() => {
         <div class="form-section-title">基础信息</div>
         <div class="mdm-form-row">
           <div class="mdm-form-label required"><em>*</em>字段编码</div>
-          <input v-model="form.fieldCode" class="mdm-input-yellow" placeholder="请输入字段编码" />
+          <input v-model="form.fieldCode" class="mdm-input-yellow" placeholder="请输入字段编码" :disabled="dialogMode === 'view'" />
         </div>
         <div class="mdm-form-row">
           <div class="mdm-form-label required"><em>*</em>字段名称</div>
-          <input v-model="form.fieldName" class="mdm-input-yellow" placeholder="请输入字段名称" />
+          <input v-model="form.fieldName" class="mdm-input-yellow" placeholder="请输入字段名称" :disabled="dialogMode === 'view'" />
         </div>
         <div class="mdm-form-row">
           <div class="mdm-form-label">字段类型</div>
-          <select v-model="form.fieldType" class="mdm-select" @change="handleFieldTypeChange">
+          <select v-model="form.fieldType" class="mdm-select" @change="handleFieldTypeChange" :disabled="dialogMode === 'view'">
             <option v-for="opt in FIELD_TYPE_OPTIONS" :key="opt.value" :value="opt.value">
               {{ opt.label }}
             </option>
@@ -582,43 +623,54 @@ onMounted(() => {
         <!-- 长度：默认显示 -->
         <div class="mdm-form-row" v-if="showConfig.length.value">
           <div class="mdm-form-label">长度</div>
-          <input v-model.number="form.length" type="number" class="mdm-input-normal" placeholder="请输入长度" :readonly="form.isEnum" />
+          <input v-model.number="form.length" type="number" class="mdm-input-normal" placeholder="请输入长度" :readonly="form.isEnum" :disabled="dialogMode === 'view'" />
         </div>
         <!-- 小数位：仅浮点型 -->
         <div class="mdm-form-row" v-if="showConfig.precision.value">
           <div class="mdm-form-label">小数位</div>
-          <input v-model.number="form.precision" type="number" class="mdm-input-normal" placeholder="请输入小数位数" />
+          <input v-model.number="form.precision" type="number" class="mdm-input-normal" placeholder="请输入小数位数" :disabled="dialogMode === 'view'" />
         </div>
         <!-- 关联值域：仅支持的字段类型显示 -->
         <template v-if="supportEnumTypes.includes(form.fieldType)">
           <div class="mdm-form-row">
             <div class="mdm-form-label">关联值域</div>
             <label class="mdm-checkbox">
-              <input type="checkbox" v-model="form.isEnum" @change="handleIsEnumChange" />
+              <input type="checkbox" v-model="form.isEnum" @change="handleIsEnumChange" :disabled="dialogMode === 'view'" />
               <span></span>
             </label>
           </div>
           <div class="mdm-form-row" v-if="form.isEnum">
             <div class="mdm-form-label required"><em>*</em>值域</div>
-            <select v-model="form.domainId" class="mdm-select" @change="handleDomainChange">
-              <option :value="null">请选择值域</option>
-              <option v-for="domain in filteredDomainList" :key="domain.id" :value="domain.id">
-                {{ domain.domainName }} ({{ domain.domainCode }})
-              </option>
-            </select>
+            <el-select
+              v-model="form.domainId"
+              placeholder="请选择值域"
+              filterable
+              clearable
+              style="width: 100%"
+              @change="handleDomainChange"
+              :disabled="dialogMode === 'view'"
+            >
+              <el-option
+                v-for="domain in filteredDomainList"
+                :key="domain.id"
+                :label="`${domain.domainName} (${domain.domainCode})`"
+                :value="domain.id"
+              />
+            </el-select>
           </div>
         </template>
         <div class="mdm-form-row">
-          <div class="mdm-form-label">字段分类</div>
+          <div class="mdm-form-label">字典分类</div>
           <CategoryTreeSelect
             v-model="form.categoryId"
-            placeholder="请选择分类"
+            placeholder="请选择字典分类"
             :show-search="true"
+            :disabled="dialogMode === 'view'"
           />
         </div>
         <div class="mdm-form-row">
           <div class="mdm-form-label">状态</div>
-          <select v-model="form.status" class="mdm-select">
+          <select v-model="form.status" class="mdm-select" :disabled="dialogMode === 'view'">
             <option v-for="opt in FIELD_STATUS_OPTIONS" :key="opt.value" :value="opt.value">
               {{ opt.label }}
             </option>
@@ -626,17 +678,17 @@ onMounted(() => {
         </div>
         <div class="mdm-form-row" v-if="showConfig.defaultValue.value">
           <div class="mdm-form-label">默认值</div>
-          <input v-model="form.defaultValue" class="mdm-input-normal" placeholder="请输入默认值" />
+          <input v-model="form.defaultValue" class="mdm-input-normal" placeholder="请输入默认值" :disabled="dialogMode === 'view'" />
         </div>
         <div class="mdm-form-row">
           <div class="mdm-form-label">描述</div>
-          <textarea v-model="form.description" class="mdm-textarea" placeholder="请输入描述"></textarea>
+          <textarea v-model="form.description" class="mdm-textarea" placeholder="请输入描述" :disabled="dialogMode === 'view'"></textarea>
         </div>
       </div>
 
       <template #footer>
-        <button class="mdm-btn-cancel" @click="dialogVisible = false">取消</button>
-        <button class="mdm-btn-primary" @click="handleSubmit">确定</button>
+        <button class="mdm-btn-cancel" @click="dialogVisible = false">{{ dialogMode === 'view' ? '关闭' : '取消' }}</button>
+        <button v-if="dialogMode !== 'view'" class="mdm-btn-primary" @click="handleSubmit">确定</button>
       </template>
     </MdmDialog>
 
@@ -673,10 +725,10 @@ onMounted(() => {
   color: #52c41a;
 }
 
-.status-inactive {
-  background: #fff5f5;
-  border-color: #ffa39e;
-  color: #ed2b33;
+.status-draft {
+  background: #fffbe6;
+  border-color: #ffe58f;
+  color: #faad14;
 }
 
 // 按钮间距
