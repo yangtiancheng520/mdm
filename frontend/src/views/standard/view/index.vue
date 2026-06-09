@@ -466,6 +466,34 @@ const handleRevise = async (row: ViewDefinition) => {
 // 提交审批
 const handleSubmitApproval = async (row: ViewDefinition) => {
   try {
+    // 先获取视图详情，校验数据完整性
+    const detailRes = await getViewDetail(row.id!)
+    if (detailRes.code !== 200 || !detailRes.data) {
+      ElMessage.error('获取视图详情失败')
+      return
+    }
+
+    const viewDetail = detailRes.data
+
+    // 校验：必须有实体定义
+    if (!viewDetail.entities || viewDetail.entities.length === 0) {
+      ElMessage.warning('当前视图不能提交审核：视图缺少实体定义，请先设计实体')
+      return
+    }
+
+    // 校验：必须有主表
+    const mainEntity = viewDetail.entities.find(e => e.entityType === 'main')
+    if (!mainEntity) {
+      ElMessage.warning('当前视图不能提交审核：视图缺少主表，请先添加主表')
+      return
+    }
+
+    // 校验：主表必须有字段
+    if (!mainEntity.fields || mainEntity.fields.length === 0) {
+      ElMessage.warning('当前视图不能提交审核：主表没有字段定义，请先添加字段')
+      return
+    }
+
     await ElMessageBox.confirm(
       `确定要提交视图【${row.viewName}】进行审批吗？\n提交后将进入审批流程，审批通过后才能发布。`,
       '提交审批',
@@ -490,17 +518,31 @@ const handleSubmitApproval = async (row: ViewDefinition) => {
 // 审批通过（调用发布流程）
 const handleApprove = async (row: ViewDefinition) => {
   try {
+    console.log('审批按钮点击，视图ID:', row.id)
+
     // 获取视图详情，检查数据有效性
     const res = await getViewDetail(row.id!)
+    console.log('获取视图详情返回:', res)
+
     if (res.code !== 200 || !res.data) {
       ElMessage.error('获取视图详情失败')
       return
     }
 
     const viewDetail = res.data
+    console.log('视图详情:', viewDetail)
+    console.log('实体列表:', viewDetail.entities)
+
+    // 校验：必须有实体定义
+    if (!viewDetail.entities || viewDetail.entities.length === 0) {
+      ElMessage.warning('视图缺少实体定义，请先设计实体')
+      return
+    }
 
     // 校验：主表必须有字段
     const mainEntity = viewDetail.entities?.find(e => e.entityType === 'main')
+    console.log('主表实体:', mainEntity)
+
     if (!mainEntity) {
       ElMessage.warning('视图缺少主表，请先设计主表')
       return

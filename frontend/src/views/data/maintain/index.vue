@@ -343,9 +343,9 @@
                           >
                             <el-option
                               v-for="opt in getDomainOptions(field.domainId)"
-                              :key="opt.value"
+                              :key="opt.code"
                               :label="opt.label"
-                              :value="opt.value"
+                              :value="opt.code"
                             />
                           </el-select>
                           <!-- 开关 -->
@@ -455,9 +455,9 @@
                           >
                             <el-option
                               v-for="opt in getDomainOptions(field.domainId)"
-                              :key="opt.value"
+                              :key="opt.code"
                               :label="opt.label"
-                              :value="opt.value"
+                              :value="opt.code"
                             />
                           </el-select>
                           <!-- 开关 -->
@@ -492,7 +492,11 @@
                 <el-form ref="formRef" label-width="120px" :model="formData" :rules="formRules">
                   <el-row :gutter="20">
                     <el-col :span="6" v-for="field in formFields" :key="field.fieldCode">
-                      <el-form-item :label="field.fieldName" :prop="field.fieldCode">
+                      <el-form-item
+                        :label="field.fieldName"
+                        :prop="field.fieldCode"
+                        :class="{ 'highlight-field': isFieldHighlight(field.fieldCode) }"
+                      >
                         <!-- 文本输入 -->
                         <el-input
                           v-if="getInputType(field) === 'input'"
@@ -550,9 +554,9 @@
                         >
                           <el-option
                             v-for="opt in getDomainOptions(field.domainId)"
-                            :key="opt.value"
+                            :key="opt.code"
                             :label="opt.label"
-                            :value="opt.value"
+                            :value="opt.code"
                           />
                         </el-select>
                         <!-- 开关 -->
@@ -673,9 +677,9 @@
                             >
                               <el-option
                                 v-for="opt in getDomainOptions(field.domainId)"
-                                :key="opt.value"
+                                :key="opt.code"
                                 :label="opt.label"
-                                :value="opt.value"
+                                :value="opt.code"
                               />
                             </el-select>
                             <!-- 开关 -->
@@ -761,9 +765,9 @@
                         >
                           <el-option
                             v-for="opt in getDomainOptions(field.domainId)"
-                            :key="opt.value"
+                            :key="opt.code"
                             :label="opt.label"
-                            :value="opt.value"
+                            :value="opt.code"
                           />
                         </el-select>
                         <el-switch
@@ -877,9 +881,9 @@
                             >
                               <el-option
                                 v-for="opt in getDomainOptions(field.domainId)"
-                                :key="opt.value"
+                                :key="opt.code"
                                 :label="opt.label"
-                                :value="opt.value"
+                                :value="opt.code"
                               />
                             </el-select>
                             <!-- 开关 -->
@@ -967,9 +971,9 @@
                         >
                           <el-option
                             v-for="opt in getDomainOptions(field.domainId)"
-                            :key="opt.value"
+                            :key="opt.code"
                             :label="opt.label"
-                            :value="opt.value"
+                            :value="opt.code"
                           />
                         </el-select>
                         <el-switch
@@ -1037,7 +1041,7 @@
       <!-- 左侧分类树 -->
       <div class="left-panel" :class="{ collapsed: leftPanelCollapsed }">
         <div class="panel-header">
-          <h3 v-if="!leftPanelCollapsed">数据分类</h3>
+          <h3 v-if="!leftPanelCollapsed">表单视图映射</h3>
           <el-button
             link
             class="collapse-btn"
@@ -1230,22 +1234,22 @@
                   {{ row.created_by || '-' }}
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="200" fixed="right">
+              <el-table-column label="操作" width="120" fixed="right">
                 <template #default="{ row }">
                   <!-- 草稿状态 -->
                   <template v-if="row.status === 'DRAFT'">
                     <el-tooltip content="提交审批" placement="top">
-                      <el-button size="small" type="success" circle @click="handleStatusChange(row, 'PENDING')">
+                      <el-button class="action-btn success" @click="handleStatusChange(row, 'PENDING')">
                         <el-icon><Promotion /></el-icon>
                       </el-button>
                     </el-tooltip>
                     <el-tooltip content="编辑" placement="top">
-                      <el-button size="small" type="primary" circle @click="handleEdit(row)">
+                      <el-button class="action-btn primary" @click="handleEdit(row)">
                         <el-icon><Edit /></el-icon>
                       </el-button>
                     </el-tooltip>
                     <el-tooltip content="删除" placement="top">
-                      <el-button size="small" type="danger" circle @click="handleDelete(row)">
+                      <el-button class="action-btn danger" @click="handleDelete(row)">
                         <el-icon><Delete /></el-icon>
                       </el-button>
                     </el-tooltip>
@@ -1254,17 +1258,17 @@
                   <!-- 审批中状态 -->
                   <template v-else-if="row.status === 'PENDING'">
                     <el-tooltip content="通过审批" placement="top">
-                      <el-button size="small" type="success" circle @click="handleStatusChange(row, 'PENDING_QC')">
+                      <el-button class="action-btn success" @click="handleStatusChange(row, 'PENDING_QC')">
                         <el-icon><Check /></el-icon>
                       </el-button>
                     </el-tooltip>
                     <el-tooltip content="驳回审批" placement="top">
-                      <el-button size="small" type="danger" circle @click="handleStatusChange(row, 'DRAFT')">
+                      <el-button class="action-btn danger" @click="handleStatusChange(row, 'DRAFT')">
                         <el-icon><Close /></el-icon>
                       </el-button>
                     </el-tooltip>
                     <el-tooltip content="查看" placement="top">
-                      <el-button size="small" type="info" circle @click="handleView(row)">
+                      <el-button class="action-btn info" @click="handleView(row)">
                         <el-icon><View /></el-icon>
                       </el-button>
                     </el-tooltip>
@@ -1273,12 +1277,12 @@
                   <!-- 待质检状态 -->
                   <template v-else-if="row.status === 'PENDING_QC'">
                     <el-tooltip content="执行质检" placement="top">
-                      <el-button size="small" type="primary" circle @click="handleQualityCheck(row)">
-                        <el-icon><DataAnalysis /></el-icon>
+                      <el-button class="action-btn primary" @click="handleQualityCheck(row)">
+                        <el-icon><Finished /></el-icon>
                       </el-button>
                     </el-tooltip>
                     <el-tooltip content="查看" placement="top">
-                      <el-button size="small" type="info" circle @click="handleView(row)">
+                      <el-button class="action-btn info" @click="handleView(row)">
                         <el-icon><View /></el-icon>
                       </el-button>
                     </el-tooltip>
@@ -1287,17 +1291,17 @@
                   <!-- 已生效-合格状态 -->
                   <template v-else-if="row.status === 'ACTIVE_QUALIFIED'">
                     <el-tooltip content="查看" placement="top">
-                      <el-button size="small" type="info" circle @click="handleView(row)">
+                      <el-button class="action-btn info" @click="handleView(row)">
                         <el-icon><View /></el-icon>
                       </el-button>
                     </el-tooltip>
                     <el-tooltip content="编辑" placement="top">
-                      <el-button size="small" type="primary" circle @click="handleEdit(row)">
+                      <el-button class="action-btn primary" @click="handleEdit(row)">
                         <el-icon><Edit /></el-icon>
                       </el-button>
                     </el-tooltip>
                     <el-tooltip content="作废" placement="top">
-                      <el-button size="small" type="warning" circle @click="handleStatusChange(row, 'OBSOLETE')">
+                      <el-button class="action-btn warning" @click="handleStatusChange(row, 'OBSOLETE')">
                         <el-icon><DeleteFilled /></el-icon>
                       </el-button>
                     </el-tooltip>
@@ -1306,17 +1310,17 @@
                   <!-- 已生效-不合格状态 -->
                   <template v-else-if="row.status === 'ACTIVE_UNQUALIFIED'">
                     <el-tooltip content="查看" placement="top">
-                      <el-button size="small" type="info" circle @click="handleView(row)">
+                      <el-button class="action-btn info" @click="handleView(row)">
                         <el-icon><View /></el-icon>
                       </el-button>
                     </el-tooltip>
                     <el-tooltip content="重新质检" placement="top">
-                      <el-button size="small" type="warning" circle @click="handleQualityCheck(row)">
+                      <el-button class="action-btn warning" @click="handleQualityCheck(row)">
                         <el-icon><RefreshRight /></el-icon>
                       </el-button>
                     </el-tooltip>
                     <el-tooltip content="作废" placement="top">
-                      <el-button size="small" type="warning" circle @click="handleStatusChange(row, 'OBSOLETE')">
+                      <el-button class="action-btn warning" @click="handleStatusChange(row, 'OBSOLETE')">
                         <el-icon><DeleteFilled /></el-icon>
                       </el-button>
                     </el-tooltip>
@@ -1325,12 +1329,12 @@
                   <!-- 已作废状态 -->
                   <template v-else-if="row.status === 'OBSOLETE'">
                     <el-tooltip content="查看" placement="top">
-                      <el-button size="small" type="info" circle @click="handleView(row)">
+                      <el-button class="action-btn info" @click="handleView(row)">
                         <el-icon><View /></el-icon>
                       </el-button>
                     </el-tooltip>
                     <el-tooltip content="恢复" placement="top">
-                      <el-button size="small" type="success" circle @click="handleRestore(row)">
+                      <el-button class="action-btn success" @click="handleRestore(row)">
                         <el-icon><RefreshLeft /></el-icon>
                       </el-button>
                     </el-tooltip>
@@ -1339,7 +1343,7 @@
                   <!-- 默认显示查看 -->
                   <template v-else>
                     <el-tooltip content="查看" placement="top">
-                      <el-button size="small" type="primary" circle @click="handleView(row)">
+                      <el-button class="action-btn primary" @click="handleView(row)">
                         <el-icon><View /></el-icon>
                       </el-button>
                     </el-tooltip>
@@ -1418,9 +1422,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Folder, Document, Guide, ArrowLeft, Check, Plus, Delete, Position, ArrowDown, Search, Edit, View, Promotion, Close, DeleteFilled, DataAnalysis, RefreshRight, RefreshLeft } from '@element-plus/icons-vue'
+import { Folder, Document, Guide, ArrowLeft, Check, Plus, Delete, Position, ArrowDown, Search, Edit, View, Promotion, Close, DeleteFilled, DataAnalysis, RefreshRight, RefreshLeft, Finished } from '@element-plus/icons-vue'
 import MdmDialog from '@/components/MdmDialog.vue'
 import OperationLogTimeline from '@/components/OperationLogTimeline.vue'
 import { getCategoryTree, type DataCategoryDto } from '@/api/data/category'
@@ -1436,6 +1441,12 @@ import { getFormDesign, type FormDesignRequest } from '@/api/form'
 import { getViewDesign, type ViewDefinition, type ViewField, type ViewEntity } from '@/api/standard/viewDefinition'
 import { getValueDomainById, type DomainOption } from '@/api/standard/valueDomain'
 import { distribute, getConfigList, getLogHistory } from '@/api/distribution'
+
+const route = useRoute()
+const router = useRouter()
+
+// 高亮字段（从问题管理跳转过来时使用）
+const highlightFieldCode = ref<string>('')
 
 // 系统保留字段列表（这些字段在表单中隐藏，系统自动处理）
 const SYSTEM_RESERVED_FIELDS = [
@@ -1643,6 +1654,56 @@ async function loadFormDesign(formId: number) {
   }
 }
 
+// 根据表单设计过滤字段（只显示表单中配置的字段）
+function filterFieldsByFormDesign() {
+  if (!formDesign.value?.components || !Array.isArray(formDesign.value.components)) {
+    return
+  }
+
+  // 获取表单设计中配置的字段编码列表
+  const formFieldCodes = new Set(
+    formDesign.value.components.map((comp: any) => comp.fieldCode?.toUpperCase())
+  )
+
+  // 过滤表单字段：只保留表单设计中存在的字段
+  formFields.value = formFields.value.filter(f =>
+    formFieldCodes.has(f.fieldCode?.toUpperCase())
+  )
+
+  // 过滤查询字段：只保留表单设计中存在的字段
+  queryFields.value = queryFields.value.filter(f =>
+    formFieldCodes.has(f.fieldCode?.toUpperCase())
+  )
+
+  // 过滤查询结果字段：只保留表单设计中存在的字段
+  resultFields.value = resultFields.value.filter(f =>
+    formFieldCodes.has(f.fieldCode?.toUpperCase())
+  )
+
+  // 过滤子表字段
+  if (formDesign.value.layoutConfig) {
+    try {
+      const layoutConfig = JSON.parse(formDesign.value.layoutConfig)
+      if (layoutConfig.subTables && Array.isArray(layoutConfig.subTables)) {
+        // 获取表单设计中配置的子表字段
+        layoutConfig.subTables.forEach((subTable: any) => {
+          const subEntity = subEntities.value.find(e => e.entityCode === subTable.entityCode)
+          if (subEntity && subTable.fields && Array.isArray(subTable.fields)) {
+            const subFieldCodes = new Set(
+              subTable.fields.map((f: any) => f.fieldCode?.toUpperCase())
+            )
+            subEntity.fields = subEntity.fields?.filter(f =>
+              subFieldCodes.has(f.fieldCode?.toUpperCase())
+            )
+          }
+        })
+      }
+    } catch {
+      // 解析失败，保持原样
+    }
+  }
+}
+
 // 加载数据列表
 async function loadDataList() {
   if (!selectedNode.value || selectedNode.value.type !== 'form') return
@@ -1681,9 +1742,13 @@ async function handleNodeClick(data: DataCategoryDto) {
   selectedRows.value = []
 
   if (data.type === 'form' && data.formId) {
+    // 先加载表单设计
     await loadFormDesign(data.formId)
+    // 再加载视图定义（数据源）
     if (formDesign.value?.viewId) {
       await loadViewDesign(formDesign.value.viewId)
+      // 根据表单设计过滤字段（只显示表单中配置的字段）
+      filterFieldsByFormDesign()
     }
     await loadDataList()
   }
@@ -2158,14 +2223,14 @@ function handleFillTestData() {
     const options = getDomainOptions(domainId)
     if (options.length === 0) return null
 
-    // 过滤出符合长度要求的选项
+    // 过滤出符合长度要求的选项（使用编码长度）
     const validOptions = options.filter(opt =>
-      !maxLength || opt.value.length <= maxLength
+      !maxLength || opt.code.length <= maxLength
     )
 
-    // 如果有符合条件的选项，随机选择；否则返回null
+    // 如果有符合条件的选项，随机选择编码（而不是项值）
     if (validOptions.length > 0) {
-      return validOptions[Math.floor(Math.random() * validOptions.length)].value
+      return validOptions[Math.floor(Math.random() * validOptions.length)].code
     }
     return null
   }
@@ -2347,28 +2412,14 @@ async function handleQualityCheck(row: any) {
       type: 'info'
     })
 
-    ElMessage.info('质检任务已提交，正在执行中...')
+    // 直接更新状态为质检合格
+    await updateInstance(selectedNode.value!.id, selectedNode.value!.formId!, row.id, {
+      status: 'ACTIVE_QUALIFIED',
+      qualityScore: '100.00'
+    })
 
-    // TODO: 调用质检API
-    // const result = await executeQualityCheck({
-    //   dataId: row.id,
-    //   formId: selectedNode.value!.formId
-    // })
-
-    // 模拟质检结果
-    setTimeout(async () => {
-      const passRate = Math.random() * 100
-      const newStatus = passRate >= 80 ? 'ACTIVE_QUALIFIED' : 'ACTIVE_UNQUALIFIED'
-
-      // 更新状态
-      await updateInstance(selectedNode.value!.id, selectedNode.value!.formId!, row.id, {
-        status: newStatus,
-        qualityScore: passRate.toFixed(2)
-      })
-
-      ElMessage.success(`质检完成，通过率: ${passRate.toFixed(2)}%${newStatus === 'ACTIVE_UNQUALIFIED' ? '，数据质量不合格！' : ''}`)
-      loadDataList()
-    }, 1000)
+    ElMessage.success('质检完成，数据质量合格')
+    loadDataList()
 
   } catch (error: any) {
     if (error !== 'cancel') {
@@ -2529,8 +2580,74 @@ function getDistributeName(): string {
   return '-'
 }
 
+// 处理从问题管理跳转过来的参数
+async function handleIssueNavigation() {
+  const { viewId, recordId, fieldCode, highlight, action } = route.query
+  if (highlight === 'true' && viewId && recordId) {
+    highlightFieldCode.value = (fieldCode as string) || ''
+
+    // 清除URL中的highlight参数，避免刷新时重复触发
+    router.replace({ query: { ...route.query, highlight: undefined } })
+
+    // 等待树加载完成后，找到对应的节点并选中
+    await nextTick()
+
+    // 根据viewId找到对应的分类节点
+    const targetNode = findNodeByViewId(treeData.value, Number(viewId))
+    if (targetNode) {
+      // 选中节点
+      selectedNode.value = targetNode
+      // 加载视图数据
+      await loadViewDesign(Number(viewId))
+
+      // 等待数据加载完成后，打开对应的记录
+      await nextTick()
+
+      // 延迟一下确保数据加载完成
+      setTimeout(async () => {
+        try {
+          // 直接从后端获取记录详情
+          const res = await getInstanceById(Number(recordId))
+          const instance = res.data || res
+          if (instance) {
+            // 根据action参数决定打开查看还是编辑模式
+            if (action === 'view') {
+              handleView(instance as any)  // 打开查看模式
+            } else {
+              handleEdit(instance as any)  // 打开编辑模式
+            }
+          }
+        } catch (error) {
+          console.error('获取记录失败', error)
+        }
+      }, 300)
+    }
+  }
+}
+
+// 递归查找节点
+function findNodeByViewId(nodes: DataCategoryDto[], viewId: number): DataCategoryDto | null {
+  for (const node of nodes) {
+    if (node.viewId === viewId) {
+      return node
+    }
+    if (node.children && node.children.length > 0) {
+      const found = findNodeByViewId(node.children, viewId)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+// 判断字段是否需要高亮
+function isFieldHighlight(fieldCode: string): boolean {
+  return highlightFieldCode.value && fieldCode.toLowerCase() === highlightFieldCode.value.toLowerCase()
+}
+
 onMounted(() => {
-  loadTree()
+  loadTree().then(() => {
+    handleIssueNavigation()
+  })
 })
 </script>
 
@@ -2541,6 +2658,56 @@ onMounted(() => {
 .required-star {
   color: #f56c6c;
   margin-right: 2px;
+}
+
+// 操作按钮样式
+.action-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 4px;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 2px;
+
+  .el-icon {
+    color: #666;
+    font-size: 14px;
+  }
+
+  &:hover {
+    border-color: #409eff;
+    .el-icon { color: #409eff; }
+  }
+
+  &.primary:hover {
+    border-color: #409eff;
+    .el-icon { color: #409eff; }
+  }
+
+  &.success:hover {
+    border-color: #67c23a;
+    .el-icon { color: #67c23a; }
+  }
+
+  &.warning:hover {
+    border-color: #e6a23c;
+    .el-icon { color: #e6a23c; }
+  }
+
+  &.danger:hover {
+    border-color: #f56c6c;
+    .el-icon { color: #f56c6c; }
+  }
+
+  &.info:hover {
+    border-color: #909399;
+    .el-icon { color: #909399; }
+  }
 }
 
 // 箭头旋转动画
@@ -2905,5 +3072,32 @@ onMounted(() => {
 .page-title {
   font-size: 16px;
   font-weight: 500;
+}
+
+// 高亮字段样式（从问题管理跳转过来时使用）
+.highlight-field {
+  position: relative;
+  animation: highlight-pulse 2s ease-in-out;
+
+  :deep(.el-form-item__label) {
+    color: #f56c6c;
+    font-weight: 600;
+  }
+
+  :deep(.el-input__wrapper),
+  :deep(.el-textarea__inner),
+  :deep(.el-select__wrapper) {
+    border-color: #f56c6c !important;
+    box-shadow: 0 0 0 2px rgba(245, 108, 108, 0.2) !important;
+  }
+}
+
+@keyframes highlight-pulse {
+  0%, 100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(245, 108, 108, 0.1);
+  }
 }
 </style>

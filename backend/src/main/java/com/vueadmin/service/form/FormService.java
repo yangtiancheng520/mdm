@@ -25,13 +25,22 @@ public class FormService {
     private final FormGroupRepository formGroupRepository;
     private final FormComponentRepository formComponentRepository;
     private final ViewDefinitionRepository viewDefinitionRepository;
+    private final FormLogService formLogService;
 
     /**
      * 获取表单列表
      */
     public List<FormDto> getFormList(String formName, String formType, Long viewId, String status) {
         List<Form> forms = formRepository.search(formName, formType, viewId, status);
-        return forms.stream().map(this::convertToDto).collect(Collectors.toList());
+        return forms.stream().map(form -> {
+            FormDto dto = convertToDto(form);
+            // 获取视图名称
+            if (form.getViewId() != null) {
+                viewDefinitionRepository.findById(form.getViewId())
+                        .ifPresent(view -> dto.setViewName(view.getViewName()));
+            }
+            return dto;
+        }).collect(Collectors.toList());
     }
 
     /**
@@ -107,8 +116,13 @@ public class FormService {
         form.setDesignMode("blank");
         form.setDescription(request.getDescription());
         form.setStatus("draft");
+        form.setVersion(1); // 初始版本为 V1
 
         form = formRepository.save(form);
+
+        // 记录创建日志
+        formLogService.logCreate(form, getCurrentUser());
+
         return convertToDto(form);
     }
 
@@ -129,6 +143,13 @@ public class FormService {
         Form form = formRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("表单不存在"));
 
+        // 保存旧值用于日志记录
+        Form oldForm = new Form();
+        oldForm.setFormName(form.getFormName());
+        oldForm.setFormType(form.getFormType());
+        oldForm.setViewId(form.getViewId());
+        oldForm.setDescription(form.getDescription());
+
         // 草稿状态可以修改表单编码
         if ("draft".equals(form.getStatus()) && request.getFormCode() != null && !request.getFormCode().isEmpty()) {
             // 如果编码有变化，检查唯一性
@@ -146,6 +167,10 @@ public class FormService {
         form.setDescription(request.getDescription());
 
         form = formRepository.save(form);
+
+        // 记录更新日志
+        formLogService.logUpdate(oldForm, form, getCurrentUser());
+
         return convertToDto(form);
     }
 
@@ -154,6 +179,12 @@ public class FormService {
      */
     @Transactional
     public void deleteForm(Long id) {
+        Form form = formRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("表单不存在"));
+
+        // 记录删除日志（在删除前记录）
+        formLogService.logDelete(id, form.getFormCode(), form.getFormName(), form.getVersion(), form.getStatus(), getCurrentUser());
+
         formComponentRepository.deleteByFormId(id);
         formGroupRepository.deleteByFormId(id);
         formRepository.deleteById(id);
@@ -166,8 +197,17 @@ public class FormService {
     public void publishForm(Long id) {
         Form form = formRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("表单不存在"));
+
+        String oldStatus = form.getStatus();
+        int oldVersion = form.getVersion();
+        int newVersion = oldVersion + 1; // 发布时版本号+1
+
         form.setStatus("published");
+        form.setVersion(newVersion);
         formRepository.save(form);
+
+        // 记录发布日志
+        formLogService.logPublish(form, oldVersion, oldStatus, newVersion, getCurrentUser());
     }
 
     /**
@@ -182,9 +222,13 @@ public class FormService {
             throw new BusinessException("只有已发布的表单才能取消发布");
         }
 
+        String oldStatus = form.getStatus();
         form.setStatus("draft");
         form.setIsDefault(false); // 取消发布时清除默认标记
         formRepository.save(form);
+
+        // 记录取消发布日志
+        formLogService.logUnpublish(form, oldStatus, getCurrentUser());
     }
 
     /**
@@ -285,9 +329,20 @@ public class FormService {
                 formComponentRepository.save(component);
             }
         }
+
+        // 记录保存设计日志
+        formLogService.logSaveDesign(form.getId(), getCurrentUser());
     }
 
     // ========== 私有方法 ==========
+
+    /**
+     * 获取当前用户（临时实现，后续可从SecurityContext获取）
+     */
+    private String getCurrentUser() {
+        // TODO: 从SecurityContext或JWT获取当前用户
+        return "admin";
+    }
 
     private String generateFormCode(Long viewId, String formType) {
         String prefix = "FORM";

@@ -65,19 +65,29 @@ public class ViewDefinitionService {
             if (revising != null) {
                 filteredViews.add(revising);
             } else {
-                // 没有修订版本，优先显示主干版本
-                ViewDefinition trunk = versions.stream()
-                        .filter(v -> v.getIsTrunk() != null && v.getIsTrunk())
+                // 没有修订版本，检查是否有待审批的修订版本
+                ViewDefinition pendingApproval = versions.stream()
+                        .filter(v -> "pending_approval".equals(v.getStatus()) && v.getBaseVersionId() != null)
                         .findFirst()
                         .orElse(null);
 
-                if (trunk != null) {
-                    filteredViews.add(trunk);
+                if (pendingApproval != null) {
+                    filteredViews.add(pendingApproval);
                 } else {
-                    // 如果没有主干版本，显示最新版本（按更新时间降序）
-                    versions.stream()
-                            .max(Comparator.comparing(ViewDefinition::getUpdatedAt))
-                            .ifPresent(filteredViews::add);
+                    // 没有修订版本或待审批版本，优先显示主干版本
+                    ViewDefinition trunk = versions.stream()
+                            .filter(v -> v.getIsTrunk() != null && v.getIsTrunk())
+                            .findFirst()
+                            .orElse(null);
+
+                    if (trunk != null) {
+                        filteredViews.add(trunk);
+                    } else {
+                        // 如果没有主干版本，显示最新版本（按更新时间降序）
+                        versions.stream()
+                                .max(Comparator.comparing(ViewDefinition::getUpdatedAt))
+                                .ifPresent(filteredViews::add);
+                    }
                 }
             }
         }
@@ -334,8 +344,8 @@ public class ViewDefinitionService {
 
         String currentUser = getCurrentUser();
 
-        // 如果是修订版本发布，需要处理主干版本
-        if ("revising".equals(view.getStatus()) && view.getBaseVersionId() != null) {
+        // 如果是修订版本发布（通过baseVersionId判断），需要处理主干版本
+        if (view.getBaseVersionId() != null) {
             // 将原主干版本设为历史版本
             ViewDefinition oldTrunk = viewDefinitionRepository.findById(view.getBaseVersionId()).orElse(null);
             if (oldTrunk != null) {

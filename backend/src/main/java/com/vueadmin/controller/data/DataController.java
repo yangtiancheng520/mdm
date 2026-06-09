@@ -30,9 +30,18 @@ public class DataController {
     @GetMapping("/list")
     public ApiResponse<List<Map<String, Object>>> getList(
             @RequestParam(required = false) Long categoryId,
-            @RequestParam Long formId,
+            @RequestParam(required = false) Long formId,
+            @RequestParam(required = false) Long viewId,
             @RequestParam(required = false) String status) {
-        List<Map<String, Object>> list = physicalTableDataService.getDataList(formId, status);
+        // 支持通过formId或viewId查询
+        List<Map<String, Object>> list;
+        if (viewId != null) {
+            list = physicalTableDataService.getDataListByViewId(viewId, status);
+        } else if (formId != null) {
+            list = physicalTableDataService.getDataList(formId, status);
+        } else {
+            throw new RuntimeException("请提供formId或viewId参数");
+        }
         return ApiResponse.success(list);
     }
 

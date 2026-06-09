@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   getLogStats,
@@ -11,7 +11,6 @@ import {
   getDistributableDataList,
   getDataDetail
 } from '../../../api/distribution'
-import { getTopicList } from '../../../api/topic'
 import MdmDialog from '../../../components/MdmDialog.vue'
 
 // ==================== 统计看板 ====================
@@ -126,7 +125,7 @@ const handleSelectDataPageChange = (page: number) => {
   loadSelectDataList()
 }
 
-// 切换单行选择
+// 切换行选择
 const toggleSelectRow = (row: any) => {
   const idx = selectDataSelected.value.findIndex(r => r.id === row.id)
   if (idx > -1) {
@@ -142,13 +141,11 @@ const isRowSelected = (row: any) => {
   return selectDataSelected.value.some(r => r.id === row.id)
 }
 
-// 全选/取消全选（当前页）
+// 全选/取消全选
 const toggleSelectAll = () => {
   if (selectDataAllChecked.value) {
-    // 取消全选
     selectDataSelected.value = []
   } else {
-    // 全选当前页
     selectDataSelected.value = [...selectDataTable.value]
   }
   selectDataAllChecked.value = !selectDataAllChecked.value
@@ -165,15 +162,6 @@ const confirmSelectSingle = (row: any) => {
   distributeForm.value.dataId = row.id
   distributeForm.value.dataCode = row.code || ''
   distributeForm.value.dataName = row.name || ''
-  selectDataVisible.value = false
-}
-
-// 确认选择（多条）
-const confirmSelectMultiple = () => {
-  if (selectDataSelected.value.length === 0) {
-    ElMessage.warning('请至少选择一条数据')
-    return
-  }
   selectDataVisible.value = false
 }
 
@@ -198,7 +186,6 @@ const handleDistribute = async () => {
 
   distributeLoading.value = true
   try {
-    // 先获取完整数据
     const detailRes = await getDataDetail(
       distributeForm.value.dataType,
       distributeForm.value.dataId!
@@ -235,7 +222,7 @@ const handleDistribute = async () => {
   }
 }
 
-// 批量分发选中的数据
+// 批量分发
 const handleBatchDistribute = async () => {
   if (!distributeForm.value.systemConfigId) {
     ElMessage.warning('请选择目标系统')
@@ -248,7 +235,6 @@ const handleBatchDistribute = async () => {
 
   distributeLoading.value = true
   try {
-    // 获取所有选中数据的详情
     const dataList = []
     for (const item of selectDataSelected.value) {
       try {
@@ -345,7 +331,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="monitor-management-page">
+  <div class="distribution-monitor-page">
     <!-- 统计卡片 -->
     <div class="stat-cards">
       <div class="stat-card">
@@ -415,7 +401,7 @@ onMounted(() => {
                 readonly
                 @click="openSelectDataDialog"
               />
-              <button class="select-btn" @click="openSelectDataDialog">选择</button>
+              <button class="mdm-btn-red" @click="openSelectDataDialog">选择</button>
             </div>
           </div>
 
@@ -425,7 +411,7 @@ onMounted(() => {
           </div>
 
           <div class="form-actions">
-            <button class="mdm-btn-primary" @click="handleDistribute" :disabled="distributeLoading">
+            <button class="mdm-btn-red" @click="handleDistribute" :disabled="distributeLoading">
               {{ distributeLoading ? '分发中...' : '执行分发' }}
             </button>
           </div>
@@ -435,7 +421,9 @@ onMounted(() => {
         <div class="panel-header" style="margin-top: 16px">
           <h3>状态分布</h3>
           <div class="header-actions">
-            <input v-model="dateRange" type="date" class="mdm-input-yellow" style="width: 130px" @change="loadStats" />
+            <input v-model="dateRange[0]" type="date" class="mdm-input-yellow" style="width: 130px" @change="loadStats" />
+            <span style="margin: 0 4px; color: #999;">至</span>
+            <input v-model="dateRange[1]" type="date" class="mdm-input-yellow" style="width: 130px" @change="loadStats" />
           </div>
         </div>
         <div class="panel-content">
@@ -684,7 +672,7 @@ onMounted(() => {
 <style scoped lang="scss">
 @import '../../../assets/styles/mdm-common.scss';
 
-.monitor-management-page {
+.distribution-monitor-page {
   padding: 20px;
   background: #f5f5f5;
   min-height: calc(100vh - 60px);
@@ -751,6 +739,7 @@ onMounted(() => {
   flex-shrink: 0;
   background: #fff;
   border-radius: 4px;
+  overflow: hidden;
 }
 
 // 右侧面板
@@ -779,6 +768,7 @@ onMounted(() => {
 
   .header-actions {
     display: flex;
+    align-items: center;
     gap: 8px;
   }
 }
@@ -803,7 +793,7 @@ onMounted(() => {
 .form-actions {
   margin-top: 20px;
 
-  .mdm-btn-primary {
+  .mdm-btn-red {
     width: 100%;
   }
 }
@@ -817,20 +807,6 @@ onMounted(() => {
   .mdm-input-yellow {
     flex: 1;
     cursor: pointer;
-  }
-
-  .select-btn {
-    padding: 0 12px;
-    background: #ed2b33;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 13px;
-
-    &:hover {
-      background: #c81e2c;
-    }
   }
 }
 
@@ -885,19 +861,6 @@ onMounted(() => {
       font-weight: 500;
     }
   }
-}
-
-// 表格wrapper
-.mdm-table-wrapper {
-  flex: 1;
-  padding: 0 16px;
-  overflow: auto;
-}
-
-// 分页
-.mdm-pagination {
-  padding: 12px 16px;
-  border-top: 1px solid #e8e8e8;
 }
 
 // 类型标签

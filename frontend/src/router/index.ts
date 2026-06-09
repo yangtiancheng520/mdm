@@ -111,7 +111,7 @@ const routes = [
         path: 'data/category',
         name: 'DataCategory',
         component: () => import('../views/data/category/index.vue'),
-        meta: { title: '数据分类' }
+        meta: { title: '表单视图映射' }
       },
       {
         path: 'data/maintain',

@@ -33,7 +33,7 @@ public class ValueDomainItem {
     private String itemCode;
 
     /**
-     * 值
+     * 项值（显示给用户的文本）
      */
     @Column(name = "item_value", length = 200)
     private String itemValue;

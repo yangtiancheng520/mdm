@@ -780,7 +780,6 @@ onMounted(() => {
       <button class="btn-back" @click="handleBack">← 返回</button>
       <span class="title">{{ isViewMode ? '查看视图：' : '设计视图：' }}{{ viewData.viewName }}</span>
       <button v-if="!isViewMode" class="btn-save" :disabled="saving" @click="handleSave">{{ saving ? '保存中...' : '保存' }}</button>
-      <button v-if="!isViewMode && isRevising" class="btn-publish" :disabled="publishing" @click="handlePublish">{{ publishing ? '发布中...' : '发布' }}</button>
     </div>
 
     <!-- 内容区 -->

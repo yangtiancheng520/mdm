@@ -326,7 +326,6 @@ onMounted(() => {
             <td>
               <div class="mdm-action-buttons">
                 <button v-if="row.status === 'open'" class="mdm-action-btn" @click="handleAssign(row)">指派</button>
-                <button v-if="row.status === 'open' || row.status === 'processing'" class="mdm-action-btn" @click="handleResolve(row)">解决</button>
                 <button v-if="row.status === 'open' || row.status === 'processing'" class="mdm-action-btn" @click="handleIgnore(row)">忽略</button>
                 <button v-if="row.status === 'resolved'" class="mdm-action-btn" @click="handleClose(row)">关闭</button>
               </div>

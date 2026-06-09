@@ -228,3 +228,36 @@ export function unpublishForm(id: number) {
 export function setDefaultForm(id: number) {
   return api.post<void>(`/form/${id}/set-default`)
 }
+
+// ========== 表单操作日志 ==========
+
+export interface FormLogDto {
+  id: number
+  formId: number
+  operationType: string
+  operationDetail: string
+  fromVersion: number | null
+  toVersion: number | null
+  versionDisplay: string | null
+  fromStatus: string | null
+  toStatus: string | null
+  statusDisplay: string | null
+  changeData: string | null
+  createdBy: string
+  createdAt: string
+  ipAddress: string | null
+}
+
+/**
+ * 获取表单操作日志
+ */
+export function getFormLogs(id: number) {
+  return api.get<FormLogDto[]>(`/form/${id}/logs`)
+}
+
+/**
+ * 获取表单下待质检的数据
+ */
+export function getPendingQcData(formId: number) {
+  return api.get<{ id: number; code: string; name: string; status: string; createdAt: string }[]>(`/form/${formId}/pending-qc-data`)
+}

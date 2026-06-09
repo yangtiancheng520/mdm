@@ -24,7 +24,8 @@ export interface DataInstanceDto {
  */
 export function getInstanceList(params?: {
   categoryId?: number
-  formId: number
+  formId?: number
+  viewId?: number
   status?: string
 }) {
   return api.get<Map<string, any>[]>('/data/list', { params })

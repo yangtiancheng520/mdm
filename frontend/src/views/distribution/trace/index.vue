@@ -2,13 +2,9 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  getLogList,
-  getLog,
-  retry,
-  getConfigList,
-  getLogHistory
+  getFieldLineageFlatList,
+  getConfigList
 } from '../../../api/distribution'
-import MdmDialog from '../../../components/MdmDialog.vue'
 
 // 状态选项
 const statusOptions = [
@@ -36,7 +32,6 @@ const searchForm = ref({
   dataType: '',
   status: '',
   systemConfigId: null as number | null,
-  dataCode: '',
   dateRange: [] as string[]
 })
 
@@ -44,19 +39,6 @@ const searchForm = ref({
 const currentPage = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
-
-// 详情弹窗
-const detailVisible = ref(false)
-const detail = ref<any>(null)
-const detailTab = ref('basic')
-
-// 血缘查看
-const lineageVisible = ref(false)
-const lineageData = ref<any[]>([])
-const lineageLoading = ref(false)
-
-// 展开行
-const expandedRows = ref<number[]>([])
 
 // 加载配置列表
 const loadConfigList = async () => {
@@ -84,11 +66,12 @@ const loadData = async () => {
       params.endTime = searchForm.value.dateRange[1]
     }
 
-    const res = await getLogList(params) as any
+    const res = await getFieldLineageFlatList(params) as any
     tableData.value = res.data?.content || []
     total.value = res.data?.totalElements || 0
   } catch (e) {
-    console.error(e)
+    console.error('加载失败:', e)
+    ElMessage.error('加载数据失败')
   } finally {
     loading.value = false
   }
@@ -106,67 +89,10 @@ const handleReset = () => {
     dataType: '',
     status: '',
     systemConfigId: null,
-    dataCode: '',
     dateRange: []
   }
   currentPage.value = 1
   loadData()
-}
-
-// 查看详情
-const handleDetail = async (row: any) => {
-  try {
-    const res = await getLog(row.id) as any
-    detail.value = res.data
-    detailTab.value = 'basic'
-    detailVisible.value = true
-  } catch (e) {
-    console.error(e)
-  }
-}
-
-// 重试
-const handleRetry = async (row: any) => {
-  try {
-    const res = await retry(row.id) as any
-    if (res.data?.success) {
-      ElMessage.success('重试成功')
-    } else {
-      ElMessage.error(res.data?.errorMsg || '重试失败')
-    }
-    loadData()
-  } catch (e) {
-    console.error(e)
-  }
-}
-
-// 查看数据血缘
-const handleViewLineage = async (row: any) => {
-  lineageLoading.value = true
-  lineageVisible.value = true
-  try {
-    const res = await getLogHistory(row.dataType, row.dataId) as any
-    lineageData.value = Array.isArray(res) ? res : (res.data || [])
-  } catch (e) {
-    console.error(e)
-  } finally {
-    lineageLoading.value = false
-  }
-}
-
-// 切换展开
-const handleToggleExpand = (row: any) => {
-  const idx = expandedRows.value.indexOf(row.id)
-  if (idx > -1) {
-    expandedRows.value.splice(idx, 1)
-  } else {
-    expandedRows.value.push(row.id)
-  }
-}
-
-// 判断是否展开
-const isExpanded = (row: any) => {
-  return expandedRows.value.includes(row.id)
 }
 
 // 分页变化
@@ -181,25 +107,34 @@ const handleSizeChange = (size: number) => {
   loadData()
 }
 
-// 获取类型名称
-const getTypeName = (type: string) => {
-  return dataTypeOptions.find(o => o.value === type)?.label || type
+// 获取操作名称
+const getOperationName = (operation: string) => {
+  switch (operation) {
+    case 'CREATE': return '新增'
+    case 'UPDATE': return '更新'
+    case 'DELETE': return '删除'
+    default: return operation
+  }
 }
 
-// 格式化耗时
-const formatDuration = (ms: number) => {
-  if (!ms) return '-'
-  if (ms < 1000) return `${ms}ms`
-  return `${(ms / 1000).toFixed(2)}s`
+// 获取转换类型名称
+const getTransformTypeName = (type: string) => {
+  switch (type) {
+    case 'DIRECT': return '直接映射'
+    case 'VALUE_MAP': return '值域映射'
+    case 'FIXED': return '固定值'
+    case 'EXPRESSION': return '表达式计算'
+    default: return type
+  }
 }
 
-// 格式化JSON
-const formatJson = (jsonStr: string) => {
-  if (!jsonStr) return '无'
-  try {
-    return JSON.stringify(JSON.parse(jsonStr), null, 2)
-  } catch {
-    return jsonStr
+// 获取状态样式
+const getStatusType = (status: string) => {
+  switch (status) {
+    case 'SUCCESS': return 'success'
+    case 'FAILED': return 'danger'
+    case 'RUNNING': return 'warning'
+    default: return 'info'
   }
 }
 
@@ -214,539 +149,176 @@ onMounted(() => {
     <!-- 顶部操作栏 -->
     <div class="mdm-top-bar">
       <div class="mdm-filter-row">
-        <div class="mdm-filter-item">
-          <select v-model="searchForm.dataType" @change="handleSearch">
-            <option v-for="item in dataTypeOptions" :key="item.value" :value="item.value">
-              {{ item.label }}
-            </option>
-          </select>
-        </div>
-        <div class="mdm-filter-item">
-          <select v-model="searchForm.status" @change="handleSearch">
-            <option v-for="item in statusOptions" :key="item.value" :value="item.value">
-              {{ item.label }}
-            </option>
-          </select>
-        </div>
-        <div class="mdm-filter-item">
-          <select v-model="searchForm.systemConfigId" @change="handleSearch">
-            <option :value="null">全部系统</option>
-            <option v-for="item in configList" :key="item.id" :value="item.id">
-              {{ item.configName }}
-            </option>
-          </select>
-        </div>
-        <div class="mdm-filter-item">
-          <input v-model="searchForm.dataCode" type="text" placeholder="数据编码" @keyup.enter="handleSearch" />
-        </div>
+        <el-select v-model="searchForm.dataType" placeholder="数据类型" clearable @change="handleSearch" style="width: 120px">
+          <el-option v-for="item in dataTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+        <el-select v-model="searchForm.status" placeholder="状态" clearable @change="handleSearch" style="width: 120px">
+          <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+        <el-select v-model="searchForm.systemConfigId" placeholder="目标系统" clearable @change="handleSearch" style="width: 140px">
+          <el-option v-for="item in configList" :key="item.id" :label="item.configName" :value="item.id" />
+        </el-select>
+        <el-date-picker
+          v-model="searchForm.dateRange[0]"
+          type="date"
+          placeholder="开始时间"
+          value-format="YYYY-MM-DD"
+          style="width: 140px"
+        />
+        <el-date-picker
+          v-model="searchForm.dateRange[1]"
+          type="date"
+          placeholder="结束时间"
+          value-format="YYYY-MM-DD"
+          style="width: 140px"
+        />
       </div>
       <div class="mdm-right-group">
-        <button class="mdm-btn-outline" @click="handleSearch">查询</button>
-        <button class="mdm-btn-outline" @click="handleReset">重置</button>
+        <el-button type="primary" @click="handleSearch" :loading="loading">查询</el-button>
+        <el-button @click="handleReset">重置</el-button>
       </div>
     </div>
 
     <!-- 数据表格 -->
-    <div class="mdm-table-wrapper">
-      <table class="mdm-data-table">
-        <thead>
-          <tr>
-            <th style="width: 40px"></th>
-            <th style="width: 70px">数据类型</th>
-            <th>数据编码</th>
-            <th>数据名称</th>
-            <th>目标系统</th>
-            <th style="width: 70px">状态</th>
-            <th style="width: 70px">耗时</th>
-            <th style="width: 150px">开始时间</th>
-            <th style="width: 180px">操作</th>
-          </tr>
-        </thead>
-        <tbody v-loading="loading">
-          <template v-for="row in tableData" :key="row.id">
-            <tr>
-              <td>
-                <span class="expand-btn" @click="handleToggleExpand(row)">
-                  {{ isExpanded(row) ? '▼' : '▶' }}
-                </span>
-              </td>
-              <td>
-                <span class="mdm-type-tag">{{ getTypeName(row.dataType) }}</span>
-              </td>
-              <td>{{ row.dataCode }}</td>
-              <td>{{ row.dataName || '-' }}</td>
-              <td>{{ row.systemConfigName }}</td>
-              <td>
-                <div class="mdm-status-badge">
-                  <span :class="row.status === 'SUCCESS' ? 'mdm-green-dot' : row.status === 'FAILED' ? 'mdm-red-dot' : 'mdm-yellow-dot'"></span>
-                  {{ row.status === 'SUCCESS' ? '成功' : row.status === 'FAILED' ? '失败' : row.status === 'RUNNING' ? '执行中' : '待执行' }}
-                </div>
-              </td>
-              <td>{{ formatDuration(row.durationMs) }}</td>
-              <td>{{ row.startTime }}</td>
-              <td>
-                <div class="mdm-action-buttons">
-                  <button class="mdm-action-btn" @click="handleDetail(row)">详情</button>
-                  <button class="mdm-action-btn" @click="handleViewLineage(row)">血缘</button>
-                  <button v-if="row.status === 'FAILED'" class="mdm-action-btn warning" @click="handleRetry(row)">重试</button>
-                </div>
-              </td>
-            </tr>
-            <!-- 展开行 -->
-            <tr v-if="isExpanded(row)" class="expand-row">
-              <td colspan="9">
-                <div class="expand-content">
-                  <div class="expand-grid">
-                    <div class="expand-item">
-                      <span class="expand-label">日志编码:</span>
-                      <span class="expand-value">{{ row.logCode }}</span>
-                    </div>
-                    <div class="expand-item">
-                      <span class="expand-label">数据ID:</span>
-                      <span class="expand-value">{{ row.dataId }}</span>
-                    </div>
-                    <div class="expand-item">
-                      <span class="expand-label">操作类型:</span>
-                      <span class="expand-value">{{ row.operation }}</span>
-                    </div>
-                    <div class="expand-item">
-                      <span class="expand-label">目标Key:</span>
-                      <span class="expand-value">{{ row.sapKey || '-' }}</span>
-                    </div>
-                    <div class="expand-item">
-                      <span class="expand-label">接口名称:</span>
-                      <span class="expand-value">{{ row.interfaceName }}</span>
-                    </div>
-                    <div class="expand-item">
-                      <span class="expand-label">重试次数:</span>
-                      <span class="expand-value">{{ row.retryCount || 0 }}</span>
-                    </div>
-                  </div>
-                  <div v-if="row.errorMsg" class="error-box">
-                    <span class="error-label">错误信息:</span>
-                    <pre>{{ row.errorMsg }}</pre>
-                  </div>
-                </div>
-              </td>
-            </tr>
+    <div class="table-container">
+      <el-table
+        :data="tableData"
+        v-loading="loading"
+        border
+        stripe
+        height="100%"
+        style="width: 100%"
+      >
+        <el-table-column prop="dataId" label="数据ID" width="80" align="center" />
+        <el-table-column prop="formName" label="表单名" width="100" />
+        <el-table-column prop="dataCode" label="数据编码" width="120" show-overflow-tooltip />
+        <el-table-column prop="dataName" label="数据名称" width="140" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ row.dataName || '-' }}
           </template>
-          <tr v-if="tableData.length === 0 && !loading">
-            <td colspan="9" class="mdm-empty-data">暂无数据</td>
-          </tr>
-        </tbody>
-      </table>
+        </el-table-column>
+        <el-table-column prop="operation" label="操作" width="70" align="center">
+          <template #default="{ row }">
+            {{ getOperationName(row.operation) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="systemConfigName" label="目标系统" width="120" show-overflow-tooltip />
+        <el-table-column label="发送方字段" width="160">
+          <template #default="{ row }">
+            <div class="field-cell">
+              <div class="field-name">{{ row.mdmFieldName }}</div>
+              <div class="field-code">{{ row.mdmField }}</div>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="接收方字段" width="160">
+          <template #default="{ row }">
+            <div class="field-cell">
+              <div class="field-name">{{ row.sapFieldName }}</div>
+              <div class="field-code">{{ row.sapField }}</div>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="sourceValue" label="源值" width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ row.sourceValue || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="targetValue" label="目标值" width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ row.targetValue || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="transformType" label="转换类型" width="100">
+          <template #default="{ row }">
+            {{ getTransformTypeName(row.transformType) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="fieldStatus" label="字段状态" width="90" align="center">
+          <template #default="{ row }">
+            <el-tag :type="getStatusType(row.fieldStatus)" size="small">
+              {{ row.fieldStatusName }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="sendTime" label="发送时间" width="160" />
+      </el-table>
     </div>
 
     <!-- 分页 -->
-    <div class="mdm-pagination">
-      <span class="mdm-pagination-total">共 {{ total }} 条</span>
-      <button class="mdm-page-btn" @click="handlePageChange(1)">◀◀</button>
-      <button class="mdm-page-btn" @click="handlePageChange(currentPage - 1)">‹</button>
-      <button class="mdm-page-btn active">{{ currentPage }}</button>
-      <button class="mdm-page-btn" @click="handlePageChange(currentPage + 1)">›</button>
-      <button class="mdm-page-btn" @click="handlePageChange(Math.ceil(total / pageSize))">▶▶</button>
-      <select class="mdm-page-select" v-model="pageSize" @change="handleSizeChange(pageSize)">
-        <option :value="20">20条/页</option>
-        <option :value="50">50条/页</option>
-        <option :value="100">100条/页</option>
-      </select>
+    <div class="pagination-container">
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        :page-sizes="[10, 20, 50]"
+        :total="total"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="handleSizeChange"
+        @current-change="handlePageChange"
+      />
     </div>
-
-    <!-- 详情弹窗 -->
-    <MdmDialog v-model="detailVisible" title="分发详情" width="700px">
-      <!-- 标签页导航 -->
-      <div class="tab-nav">
-        <div
-          class="tab-item"
-          :class="{ active: detailTab === 'basic' }"
-          @click="detailTab = 'basic'"
-        >
-          基本信息
-        </div>
-        <div
-          class="tab-item"
-          :class="{ active: detailTab === 'sap' }"
-          @click="detailTab = 'sap'"
-        >
-          SAP返回
-        </div>
-        <div
-          class="tab-item"
-          :class="{ active: detailTab === 'request' }"
-          @click="detailTab = 'request'"
-        >
-          请求数据
-        </div>
-        <div
-          class="tab-item"
-          :class="{ active: detailTab === 'mapped' }"
-          @click="detailTab = 'mapped'"
-        >
-          映射数据
-        </div>
-        <div
-          class="tab-item"
-          :class="{ active: detailTab === 'response' }"
-          @click="detailTab = 'response'"
-        >
-          响应数据
-        </div>
-        <div
-          v-if="detail?.errorMsg"
-          class="tab-item"
-          :class="{ active: detailTab === 'error' }"
-          @click="detailTab = 'error'"
-        >
-          错误信息
-        </div>
-      </div>
-
-      <!-- 基本信息 -->
-      <div v-show="detailTab === 'basic'" class="detail-grid">
-        <div class="detail-item">
-          <span class="detail-label">日志编码</span>
-          <span class="detail-value">{{ detail?.logCode }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">数据类型</span>
-          <span class="detail-value">{{ detail?.dataType }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">数据编码</span>
-          <span class="detail-value">{{ detail?.dataCode }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">数据名称</span>
-          <span class="detail-value">{{ detail?.dataName }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">目标系统</span>
-          <span class="detail-value">{{ detail?.systemConfigName }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">接口</span>
-          <span class="detail-value">{{ detail?.interfaceName }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">操作</span>
-          <span class="detail-value">{{ detail?.operation }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">状态</span>
-          <span class="detail-value">
-            <span :class="['status-tag', detail?.status === 'SUCCESS' ? 'success' : detail?.status === 'FAILED' ? 'danger' : 'warning']">
-              {{ detail?.status }}
-            </span>
-          </span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">目标Key</span>
-          <span class="detail-value">{{ detail?.sapKey || '-' }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">耗时</span>
-          <span class="detail-value">{{ detail?.durationMs }} ms</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">开始时间</span>
-          <span class="detail-value">{{ detail?.startTime }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">结束时间</span>
-          <span class="detail-value">{{ detail?.endTime }}</span>
-        </div>
-      </div>
-
-      <!-- SAP返回 -->
-      <div v-show="detailTab === 'sap'" class="detail-grid">
-        <div class="detail-item">
-          <span class="detail-label">返回码</span>
-          <span class="detail-value">{{ detail?.sapReturnCode || '-' }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="detail-label">消息类型</span>
-          <span class="detail-value">{{ detail?.sapMessageType || '-' }}</span>
-        </div>
-        <div class="detail-item full">
-          <span class="detail-label">消息</span>
-          <span class="detail-value">{{ detail?.sapMessage || '-' }}</span>
-        </div>
-      </div>
-
-      <!-- 请求数据 -->
-      <div v-show="detailTab === 'request'" class="code-section">
-        <pre class="code-block">{{ formatJson(detail?.requestData) }}</pre>
-      </div>
-
-      <!-- 映射数据 -->
-      <div v-show="detailTab === 'mapped'" class="code-section">
-        <pre class="code-block">{{ formatJson(detail?.mappedData) }}</pre>
-      </div>
-
-      <!-- 响应数据 -->
-      <div v-show="detailTab === 'response'" class="code-section">
-        <pre class="code-block">{{ formatJson(detail?.responseData) }}</pre>
-      </div>
-
-      <!-- 错误信息 -->
-      <div v-show="detailTab === 'error'" class="error-section">
-        <pre class="error-block">{{ detail?.errorMsg }}</pre>
-      </div>
-
-      <template #footer>
-        <button class="mdm-btn-cancel" @click="detailVisible = false">关闭</button>
-      </template>
-    </MdmDialog>
-
-    <!-- 血缘弹窗 -->
-    <MdmDialog v-model="lineageVisible" title="数据血缘" width="900px">
-      <div class="lineage-tip">该数据的所有分发记录（按时间倒序）</div>
-
-      <div class="mdm-table-wrapper" style="margin-top: 12px">
-        <table class="mdm-data-table">
-          <thead>
-            <tr>
-              <th style="width: 50px">#</th>
-              <th>日志编码</th>
-              <th>目标系统</th>
-              <th style="width: 70px">操作</th>
-              <th style="width: 70px">状态</th>
-              <th>目标Key</th>
-              <th style="width: 70px">耗时</th>
-              <th style="width: 150px">时间</th>
-            </tr>
-          </thead>
-          <tbody v-loading="lineageLoading">
-            <tr v-for="(row, index) in lineageData" :key="row.id">
-              <td>{{ index + 1 }}</td>
-              <td>{{ row.logCode }}</td>
-              <td>{{ row.systemConfigName }}</td>
-              <td>{{ row.operation }}</td>
-              <td>
-                <div class="mdm-status-badge">
-                  <span :class="row.status === 'SUCCESS' ? 'mdm-green-dot' : row.status === 'FAILED' ? 'mdm-red-dot' : 'mdm-yellow-dot'"></span>
-                  {{ row.status === 'SUCCESS' ? '成功' : row.status === 'FAILED' ? '失败' : row.status }}
-                </div>
-              </td>
-              <td>{{ row.sapKey || '-' }}</td>
-              <td>{{ row.durationMs ? row.durationMs + 'ms' : '-' }}</td>
-              <td>{{ row.createdAt }}</td>
-            </tr>
-            <tr v-if="lineageData.length === 0 && !lineageLoading">
-              <td colspan="8" class="mdm-empty-data">暂无分发记录</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <template #footer>
-        <button class="mdm-btn-cancel" @click="lineageVisible = false">关闭</button>
-      </template>
-    </MdmDialog>
   </div>
 </template>
 
 <style scoped lang="scss">
-@import '../../../assets/styles/mdm-common.scss';
-
 .trace-management-page {
   padding: 20px;
   background: #f5f5f5;
-  min-height: calc(100vh - 60px);
-}
-
-// 展开按钮
-.expand-btn {
-  cursor: pointer;
-  color: #409eff;
-  font-size: 12px;
-}
-
-// 展开行
-.expand-row {
-  background: #fafafa;
-
-  .expand-content {
-    padding: 12px 20px;
-  }
-
-  .expand-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-  }
-
-  .expand-item {
-    display: flex;
-    font-size: 13px;
-
-    .expand-label {
-      width: 70px;
-      color: #909399;
-      flex-shrink: 0;
-    }
-
-    .expand-value {
-      flex: 1;
-      color: #303133;
-    }
-  }
-
-  .error-box {
-    margin-top: 12px;
-    padding: 10px 12px;
-    background: #fef0f0;
-    border-radius: 4px;
-
-    .error-label {
-      font-size: 13px;
-      font-weight: 500;
-      color: #f56c6c;
-    }
-
-    pre {
-      margin: 6px 0 0;
-      color: #f56c6c;
-      font-size: 12px;
-      white-space: pre-wrap;
-      word-break: break-all;
-    }
-  }
-}
-
-// 类型标签
-.mdm-type-tag {
-  display: inline-block;
-  padding: 2px 8px;
-  background: #e6f7ff;
-  color: #1890ff;
-  border-radius: 3px;
-  font-size: 12px;
-}
-
-// 操作按钮
-.mdm-action-btn {
-  &.warning {
-    color: #e6a23c;
-  }
-}
-
-// 标签页导航
-.tab-nav {
+  height: calc(100vh - 60px);
   display: flex;
-  gap: 4px;
-  margin-bottom: 16px;
-  padding: 4px;
-  background: #f5f5f5;
-  border-radius: 4px;
-
-  .tab-item {
-    padding: 8px 16px;
-    font-size: 13px;
-    color: #666;
-    cursor: pointer;
-    border-radius: 3px;
-    transition: all 0.2s;
-
-    &:hover {
-      color: #333;
-    }
-
-    &.active {
-      background: #fff;
-      color: #e74c3c;
-      font-weight: 500;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    }
-  }
+  flex-direction: column;
 }
 
-// 详情网格
-.detail-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-  border: 1px solid #e8e8e8;
+// 顶部操作栏
+.mdm-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #fff;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.mdm-filter-row {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+}
+
+.mdm-right-group {
+  display: flex;
+  gap: 8px;
+}
+
+// 表格容器
+.table-container {
+  flex: 1;
+  background: #fff;
   border-radius: 4px;
   overflow: hidden;
-
-  .detail-item {
-    display: flex;
-    border-bottom: 1px solid #e8e8e8;
-
-    &.full {
-      grid-column: 1 / -1;
-    }
-
-    &:nth-last-child(-n+2) { border-bottom: none; }
-    &:nth-child(odd) { border-right: 1px solid #e8e8e8; }
-
-    .detail-label {
-      width: 80px;
-      padding: 10px 12px;
-      background: #fafafa;
-      font-size: 13px;
-      color: #666;
-      flex-shrink: 0;
-    }
-
-    .detail-value {
-      flex: 1;
-      padding: 10px 12px;
-      font-size: 13px;
-      color: #333;
-      word-break: break-all;
-    }
-  }
 }
 
-// 状态标签
-.status-tag {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-size: 12px;
-
-  &.success { background: #f0f9eb; color: #67c23a; }
-  &.danger { background: #fef0f0; color: #f56c6c; }
-  &.warning { background: #fdf6ec; color: #e6a23c; }
-}
-
-// 代码区块
-.code-section {
-  .code-block {
-    background: #f5f5f5;
-    padding: 15px;
-    border-radius: 4px;
-    overflow: auto;
-    max-height: 300px;
+// 字段单元格
+.field-cell {
+  .field-name {
+    color: #303133;
     font-size: 12px;
-    margin: 0;
-    white-space: pre-wrap;
-    word-break: break-all;
+    line-height: 1.4;
+  }
+  .field-code {
+    color: #909399;
+    font-size: 11px;
+    line-height: 1.4;
   }
 }
 
-// 错误区块
-.error-section {
-  .error-block {
-    background: #fef0f0;
-    padding: 15px;
-    border-radius: 4px;
-    overflow: auto;
-    max-height: 300px;
-    font-size: 12px;
-    margin: 0;
-    color: #f56c6c;
-    white-space: pre-wrap;
-    word-break: break-all;
-  }
-}
-
-// 血缘提示
-.lineage-tip {
-  font-size: 13px;
-  color: #666;
-  margin-bottom: 12px;
+// 分页容器
+.pagination-container {
+  background: #fff;
+  padding: 16px;
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid #ebeef5;
 }
 </style>

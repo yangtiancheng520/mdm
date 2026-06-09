@@ -109,8 +109,8 @@ public class ValueDomainService {
         return items.stream()
                 .map(item -> new DomainOptionDto(
                     item.getItemCode(),      // code: 编码
-                    item.getItemCode(),      // value: 编码（存储到数据库的值）
-                    item.getItemValue(),     // label: 名称（显示给用户）
+                    item.getItemValue(),     // value: 项值
+                    item.getItemValue(),     // label: 项值（显示名）
                     item.getSort()
                 ))
                 .collect(Collectors.toList());
@@ -220,11 +220,11 @@ public class ValueDomainService {
         }
 
         for (DomainOptionDto opt : options) {
-            if (opt.getValue() != null && !opt.getValue().trim().isEmpty()) {
+            if (opt.getCode() != null && !opt.getCode().trim().isEmpty()) {
                 ValueDomainItem item = new ValueDomainItem();
                 item.setDomainId(domainId);
-                item.setItemCode(opt.getCode());
-                item.setItemValue(opt.getValue());
+                item.setItemCode(opt.getCode());                         // 编码
+                item.setItemValue(opt.getValue());                       // 项名称（显示值）
                 item.setSort(opt.getSort() != null ? opt.getSort() : 0);
                 item.setStatus("启用");
                 valueDomainItemRepository.save(item);

@@ -3,7 +3,7 @@
     <!-- 顶部工具栏 -->
     <div class="mdm-top-bar">
       <div class="mdm-filter-row">
-        <span class="page-title">数据分类管理</span>
+        <span class="page-title">表单视图映射管理</span>
       </div>
       <div class="mdm-right-group">
         <button class="mdm-btn-primary" @click="handleAddRoot">+ 新增</button>

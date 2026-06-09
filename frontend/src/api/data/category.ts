@@ -1,7 +1,7 @@
 import api from '@/api/index'
 
 /**
- * 数据分类接口
+ * 表单视图映射接口
  */
 
 export interface DataCategoryDto {

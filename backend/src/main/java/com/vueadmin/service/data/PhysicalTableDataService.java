@@ -50,7 +50,16 @@ public class PhysicalTableDataService {
 
         log.info("表单关联的视图ID: {}", form.getViewId());
 
-        ViewDefinitionDto viewDefinition = viewDefinitionService.getViewDetail(form.getViewId());
+        return getDataListByViewId(form.getViewId(), status);
+    }
+
+    /**
+     * 通过视图ID查询数据列表
+     */
+    public List<Map<String, Object>> getDataListByViewId(Long viewId, String status) {
+        log.info("开始查询数据列表, viewId: {}, status: {}", viewId, status);
+
+        ViewDefinitionDto viewDefinition = viewDefinitionService.getViewDetail(viewId);
 
         // 2. 获取主表实体
         ViewEntityDto mainEntity = viewDefinition.getEntities().stream()
